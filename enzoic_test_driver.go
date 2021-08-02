@@ -6,8 +6,8 @@ import (
 )
 
 
-var key = "d7f84daff45045e080e62e8f7eb6a9c7"
-var secret = "=UuTmZEDrW6c8XBkTZyrZ94NHt1p3pk*"
+var key = ""
+var secret = ""
 
 func main() {
   my_enzoic := enzoic.NewEnzoic(key, secret)
