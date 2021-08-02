@@ -258,7 +258,6 @@ func (enzoic *Enzoic) CheckCredentials(username, password, last_check_date strin
 			if findInt(excluded_hash_types, hash_spec.HashType) {
 				continue
 			}
-
 			// bcrypt gets far too expensive for good response time if there are many of them to calculate.
       // some mostly garbage accounts have accumulated a number of them in our DB and if we happen to hit one it
       // kills performance, so short circuit out after at most 2 BCrypt hashes
@@ -266,9 +265,7 @@ func (enzoic *Enzoic) CheckCredentials(username, password, last_check_date strin
 				fmt.Println(hash_spec.Salt)
 			}
 
-
-		}
-
+		} // end for loop
 
   } //end if status == 200
 
