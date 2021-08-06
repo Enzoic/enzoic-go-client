@@ -41,7 +41,6 @@ type PasswordCandidate struct {
 } // end PasswordCandidate struct
 
 
-
 // Accounts API data structures
 
 type EnzoicAccountResponse struct {
@@ -53,6 +52,12 @@ type EnzoicAccountResponse struct {
 type HashSpec struct {
 	HashType int
 	Salt string
+}
+
+// Credentials API data structures
+
+type EnzoicCredentialResponse struct {
+	CandidateHashes []string
 }
 
 
@@ -186,6 +191,8 @@ func (enzoic *Enzoic) CheckPasswordEx(password string) (exposed bool, relative_e
 
     passwords_response := EnzoicPasswordsResponse{}
     json.Unmarshal([]byte(body), &passwords_response)
+
+		//check each candidate hash for equivalency
     for _, candidate := range passwords_response.Candidates {
       if (md5 == candidate.MD5) || (sha1 == candidate.SHA1) || (sha256 == candidate.SHA256) {
 				relative_exposure = candidate.RelativeExposureFrequency
@@ -254,27 +261,71 @@ func (enzoic *Enzoic) CheckCredentials(username, password, last_check_date strin
 		}
 
 		var bcrypt_count int = 0
+		var credential_hashes []string
+		var query_string string = ""
+
 		for _, hash_spec := range account_response.PasswordHashesRequired {
+			// if the hash type is in the excluded types list, move on to the next entry
 			if findInt(excluded_hash_types, hash_spec.HashType) {
 				continue
 			}
 			// bcrypt gets far too expensive for good response time if there are many of them to calculate.
-      // some mostly garbage accounts have accumulated a number of them in our DB and if we happen to hit one it
+      // some (mostly garbage) accounts have accumulated a number of them in our DB and if we happen to hit one it
       // kills performance, so short circuit out after at most 2 BCrypt hashes
 			if ((hash_spec.HashType != 8) || (bcrypt_count <= 2)) {
-				fmt.Println(hash_spec.Salt)
+				if hash_spec.HashType == 8 { bcrypt_count++ }
+				//calculate hashes for each credential pair to check
+				credential_hash := hashing.CalculateCredentialHash(username, password, hash_spec.Salt, account_response.Salt, hash_spec.HashType)
+				if credential_hash != "" {
+						credential_hashes = append(credential_hashes, credential_hash)
+						if len(query_string) == 0 {
+							query_string += "?partialHashes=" + credential_hash[:10]
+						} else {
+							query_string += "&partialHashes=" + credential_hash[:10]
+						}
+				}
 			}
+		} // end for loop - now all credential hashes have been calculated for the credentials api request
 
-		} // end for loop
+		//make credentials API request and check candidates for a match
+		if len(query_string) > 0 {
+			request_string = enzoic.api_base_url + enzoic.CREDENTIALS_API_PATH + query_string
+			api_response := enzoic.makeRestApiGetRequest(request_string)
+			creds_body, err := ioutil.ReadAll(api_response.Body)
+			if err != nil {
+				fmt.Errorf("Error reading Credentials API response %v", err)
+				return false, errors.New("Credentials API Response Error")
+			}
+			credential_response := EnzoicCredentialResponse{}
+			json.Unmarshal([]byte(creds_body), &credential_response)
+			for _, cred_candidate := range credential_response.CandidateHashes {
+				if findString(credential_hashes, cred_candidate) {
+					// if we have a full match, the credential pair is compromised
+					return true, nil
+				}
+
+			} // end for cred_candidate loop
+			return false, nil
+
+		} // end if query_string not empty
+		return false, nil
 
   } //end if status == 200
+	return false, nil
 
-	return true, nil
 } // end func CheckCredentials
 
 
-
 // non-exported functions
+
+func findString(my_slice []string, my_string string) bool {
+	for _, item := range my_slice {
+		if item == my_string {
+			return true
+		}
+	}
+	return false
+}
 
 func findInt(my_slice []int, my_val int) bool {
 	for _, item := range my_slice {

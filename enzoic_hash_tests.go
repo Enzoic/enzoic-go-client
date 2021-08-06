@@ -47,11 +47,12 @@ func hash_tests() {
   }
 
   test_argon2_d := hashing.Calculate_argon2_hash(test_pw, "$argon2d$v=19$m=1024,t=3,p=2$c2FsdHlzYWx0$")
-  fmt.Println(test_argon2_d)
-
+  if test_argon2_d == "$argon2d$v=19$m=1024,t=3,p=2$c2FsdHlzYWx0$EklGIPtCSWb3IS+q4IQ7rwrwm2o" {
+  fmt.Println("Argon2d test OK")
+  } else {
+    fmt.Println("Argon2d test failed")
+  }
 }
-
-
 
 
 func main() {

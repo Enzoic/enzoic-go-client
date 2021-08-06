@@ -11,6 +11,7 @@ import (
   "crypto/sha256"
   "crypto/sha512"
   "enzoic/argon2"
+  "enzoic/PasswordType"
 
 
 )
@@ -135,5 +136,35 @@ func Calculate_argon2_hash(plaintext, salt string) (hash_string string) {
 
 // enzoic API specific
 
-//func CalculateCredentialHash(username, password, password_salt, argon2_salt string, hash_type int) string {
-//}
+func CalculateCredentialHash(username, password, password_salt, argon2_salt string, hash_type int) string {
+  password_hash := calculatePasswordHash(password, password_salt, hash_type)
+
+  if password_hash != "" {
+    cred_string := username + "$" + password_hash
+    argon2_hash := Calculate_argon2_hash(cred_string, argon2_salt)
+    hash_components := strings.Split(argon2_hash, "$")
+    just_hash := hash_components[(len(hash_components)-1)]
+    return just_hash
+  } else {
+    return ""
+  }
+
+} // end func CalculateCredentialHash
+
+func calculatePasswordHash(password_to_hash, salt string, hash_type int) string {
+  switch hash_type {
+  case PasswordType.PLAINTEXT:
+    return password_to_hash
+  case PasswordType.MD5_UNSALTED:
+    return Calculate_md5_hash(password_to_hash)
+  case PasswordType.SHA1_UNSALTED:
+    return Calculate_sha1_hash(password_to_hash)
+  case PasswordType.SHA256_UNSALTED:
+      return Calculate_sha256_hash(password_to_hash)
+  // TODO - TripleDES
+  case PasswordType.IPBoard_MyBB:
+    return Calculate_ipboard_mybb_hash(password_to_hash, salt)
+  default:
+    return ""
+  }
+} //end func calculatePasswordHash
