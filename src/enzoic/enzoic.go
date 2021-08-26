@@ -88,7 +88,7 @@ func NewEnzoic(client_api_key, client_api_secret string) *Enzoic {
 
 } // end func NewEnzoic
 
-// Overloaded constructor for custom endpoints:
+// NewEnzoicWithAltEndpoint - constructor for custom endpoints:
 // client_api_base_url: If you were provided an alternative API endpoint,
 // use New_with_alt_endpoint() and pass in the endpoint with this parameter
 func NewEnzoicWithAltEndpoint(client_api_key, client_api_secret,
@@ -153,6 +153,8 @@ func (enzoic *Enzoic) CheckPassword(password string) (bool, error) {
 
 } // end func CheckPassword
 
+
+
 //CheckPasswordEx checks whether the provided password is in the Enzoic database of known, compromised passwords,
 // and returns the relative exposure frequency and exposure count.
 //See: https://www.enzoic.com/docs/passwords-api
@@ -213,7 +215,7 @@ func (enzoic *Enzoic) CheckPasswordEx(password string) (exposed bool, relative_e
 
 } // end func CheckPasswordEx
 
-
+// CheckCredentials
 // example date format required - "2021-07-27T03:29:13.000Z"
 // if not using the last_check_date argument, pass "0000-00-00T00:00:00.000Z" as
 // a string to ensure full execution.
@@ -291,29 +293,54 @@ func (enzoic *Enzoic) CheckCredentials(username, password, last_check_date strin
 		if len(query_string) > 0 {
 			request_string = enzoic.api_base_url + enzoic.CREDENTIALS_API_PATH + query_string
 			api_response := enzoic.makeRestApiGetRequest(request_string)
-			creds_body, err := ioutil.ReadAll(api_response.Body)
-			if err != nil {
-				fmt.Errorf("Error reading Credentials API response %v", err)
-				return false, errors.New("Credentials API Response Error")
-			}
-			credential_response := EnzoicCredentialResponse{}
-			json.Unmarshal([]byte(creds_body), &credential_response)
-			for _, cred_candidate := range credential_response.CandidateHashes {
-				if findString(credential_hashes, cred_candidate) {
-					// if we have a full match, the credential pair is compromised
-					return true, nil
+			if api_response.StatusCode != 404 {
+				creds_body, err := ioutil.ReadAll(api_response.Body)
+				if err != nil {
+					fmt.Errorf("Error reading Credentials API response %v", err)
+					return false, errors.New("Credentials API Response Error")
 				}
+				credential_response := EnzoicCredentialResponse{}
+				json.Unmarshal([]byte(creds_body), &credential_response)
+				for _, cred_candidate := range credential_response.CandidateHashes {
+					if findString(credential_hashes, cred_candidate) {
+						// if we have a full match, the credential pair is compromised
+						return true, nil
+					}
 
-			} // end for cred_candidate loop
-			return false, nil
+				} // end for cred_candidate loop - when no match is found
+
+			} // end if api_response_status is not 404
 
 		} // end if query_string not empty
-		return false, nil
 
-  } //end if status == 200
+  } //end if initial username check on accounts API status == 200
+
 	return false, nil
 
 } // end func CheckCredentials
+
+
+//GetExposuresForUser
+//Returns all of the credentials Exposures that have been found for a given username.
+//        See: https://www.enzoic.com/docs/exposures-api#get-exposures
+//        param username: The username or the email address of the user to check (string)
+//        returns: The json response contains an array of exposure IDs for the user. These IDs can be used with the
+//         get_exposure_details call to get additional information about each exposure
+func (enzoic *Enzoic) GetExposuresForUser(username string) []byte {
+	request_string := enzoic.api_base_url + enzoic.EXPOSURE_API_PATH + "?username=" + username
+	response := enzoic.makeRestApiGetRequest(request_string)
+	if response.StatusCode == 404 {
+		//this username is not in DB - return an empty json response
+		return []byte(`{"count": 0, "exposures": []}`)
+	} else {
+		exposures, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			fmt.Errorf("Error reading Exposures API response %v", err)
+		}
+		return exposures
+	}
+} // end func GetExposuresForUser
+
 
 
 // non-exported functions

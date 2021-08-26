@@ -47,6 +47,25 @@ func Calculate_ipboard_mybb_hash(plaintext, salt string) string {
   return hash
 } // end Calculate_ipboard_mybb_hash
 
+//TODO
+func Calculate_triple_DES_hash(password, salt string) string {
+  return ""
+} // end Calculate_triple_DES_hash
+
+func Calculate_vbulletin_pre_3_8_5_hash(password, salt string) string {
+  return Calculate_md5_hash( (Calculate_md5_hash(password) + salt) )
+} // Calculate_vbulletin_pre_3_8_5_hash
+
+func Calculate_vbulletin_post_3_8_5_hash(password, salt string) string {
+  return Calculate_vbulletin_pre_3_8_5_hash(password, salt)
+} // Calculate_vbulletin_post_3_8_5_hash
+
+func Calculate_bcrypt_hash(password, salt string) string {
+  return ""
+} // end func Calculate_bcrypt_hash
+
+
+
 func Calculate_argon2_hash(plaintext, salt string) (hash_string string) {
   var memory uint32 = 1024
   var time uint32 = 3
@@ -130,11 +149,11 @@ func Calculate_argon2_hash(plaintext, salt string) (hash_string string) {
     return hash_string
   }
 
-} // end func Calculate_argon_2_hash8
+} // end func Calculate_argon_2_hash
 
 
 
-// enzoic API specific
+// enzoic API helper functions
 
 func CalculateCredentialHash(username, password, password_salt, argon2_salt string, hash_type int) string {
   password_hash := calculatePasswordHash(password, password_salt, hash_type)
@@ -144,7 +163,8 @@ func CalculateCredentialHash(username, password, password_salt, argon2_salt stri
     argon2_hash := Calculate_argon2_hash(cred_string, argon2_salt)
     hash_components := strings.Split(argon2_hash, "$")
     just_hash := hash_components[(len(hash_components)-1)]
-    return just_hash
+    just_hash_b64_bytes := DecodeBase64(just_hash)
+    return hex.EncodeToString(just_hash_b64_bytes)
   } else {
     return ""
   }
@@ -168,3 +188,15 @@ func calculatePasswordHash(password_to_hash, salt string, hash_type int) string 
     return ""
   }
 } //end func calculatePasswordHash
+
+
+func DecodeBase64(base64 string) []byte {
+  mod4 := len(base64) % 4
+  if mod4 > 0 {
+    for i := 0; i < (4 - mod4); i++ {
+      base64 += "="
+    }
+  }
+  b64_bytes, _ := b64.StdEncoding.DecodeString(base64)
+  return b64_bytes
+} // end func DecodeBase64

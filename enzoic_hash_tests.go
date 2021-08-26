@@ -48,11 +48,19 @@ func hash_tests() {
 
   test_argon2_d := hashing.Calculate_argon2_hash(test_pw, "$argon2d$v=19$m=1024,t=3,p=2$c2FsdHlzYWx0$")
   if test_argon2_d == "$argon2d$v=19$m=1024,t=3,p=2$c2FsdHlzYWx0$EklGIPtCSWb3IS+q4IQ7rwrwm2o" {
-  fmt.Println("Argon2d test OK")
+    fmt.Println("Argon2d test OK")
   } else {
     fmt.Println("Argon2d test failed")
   }
-}
+
+  test_vbulletin_pre := hashing.Calculate_vbulletin_pre_3_8_5_hash(test_pw, "123")
+  if test_vbulletin_pre == "77d3b7ed9db7d236b9eac8262d27f6a5" {
+    fmt.Println("vBulletin pre-3.8.5 test OK")
+  } else {
+    fmt.Println("vBulletin pre-3.8.5 test failed")
+  }
+
+} // end func hash_tests
 
 
 func main() {

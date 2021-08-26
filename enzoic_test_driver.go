@@ -6,8 +6,8 @@ import (
 )
 
 
-var key = ""
-var secret = ""
+var key = "d7f84daff45045e080e62e8f7eb6a9c7"
+var secret = "=UuTmZEDrW6c8XBkTZyrZ94NHt1p3pk*"
 
 func main() {
   my_enzoic := enzoic.NewEnzoic(key, secret)
@@ -30,7 +30,6 @@ func main() {
     fmt.Println("CheckPassword Test 2 FAILED")
   }
 
-
   // Tests for CheckPasswordEx
   is_compromised,relative_ex, ex_count, err := my_enzoic.CheckPasswordEx("password")
   if is_compromised {
@@ -47,9 +46,11 @@ func main() {
   }
 
   // Test for CheckCredentials
-
   var hash_types_to_exclude []int
-  is_compromised, err = my_enzoic.CheckCredentials("testuser", "password", "0000-00-00T00:00:00.000Z", hash_types_to_exclude)
-  fmt.Println(is_compromised)
-
+  is_compromised, err = my_enzoic.CheckCredentials("test@passwordping.com", "123456", "0000-00-00T00:00:00.000Z", hash_types_to_exclude)
+  if is_compromised {
+    fmt.Println("CheckCredentials Test 1 OK [credentials are compromised, no hash types excluded]")
+  } else {
+    fmt.Println("CheckCredentials Test 1 FAILED")
+  }
 } // end main (enzoic_test_driver.go)
