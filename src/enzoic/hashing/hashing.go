@@ -6,14 +6,16 @@ import (
   "strings"
   "strconv"
 
+  "hash/crc32"
   "crypto/md5"
   "crypto/sha1"
   "crypto/sha256"
   "crypto/sha512"
+  "enzoic/bcrypt"
   "enzoic/argon2"
   "enzoic/PasswordType"
-
-
+  "enzoic/phpass"
+  "enzoic/md5crypt"
 )
 
 // inidvidual hashing algorithms
@@ -54,16 +56,44 @@ func Calculate_triple_DES_hash(password, salt string) string {
 
 func Calculate_vbulletin_pre_3_8_5_hash(password, salt string) string {
   return Calculate_md5_hash( (Calculate_md5_hash(password) + salt) )
-} // Calculate_vbulletin_pre_3_8_5_hash
+} // end Calculate_vbulletin_pre_3_8_5_hash
 
 func Calculate_vbulletin_post_3_8_5_hash(password, salt string) string {
   return Calculate_vbulletin_pre_3_8_5_hash(password, salt)
-} // Calculate_vbulletin_post_3_8_5_hash
+} // end Calculate_vbulletin_post_3_8_5_hash
 
 func Calculate_bcrypt_hash(password, salt string) string {
-  return ""
+  salt_components := strings.Split(salt, "$")
+  cost, _ := strconv.Atoi(salt_components[2])
+  pw_bytes := []byte(password)
+  salt_bytes := []byte(salt_components[3])
+  hash,_ := bcrypt.Bcrypt(pw_bytes, cost, salt_bytes)
+  formatted_hash := "$" + string(salt_components[1]) + "$" + string(salt_components[2]) + "$" + string(salt_components[3]) + string(hash)
+  return string(formatted_hash)
 } // end func Calculate_bcrypt_hash
 
+func Calculate_crc32_hash(password string) string {
+  hash := crc32.ChecksumIEEE([]byte(password))
+  hash_str := strconv.FormatUint(uint64(hash), 10)
+  return hash_str
+} // end func Calculate_crc32_hash
+
+func Calculate_phpbb3_hash(password, salt string) string {
+  pw_bytes := []byte(password)
+  salt_bytes := []byte(salt)
+  hash := phpass.New(nil)
+  calc_hash, _ := hash.Crypt(pw_bytes, salt_bytes)
+  return(string(calc_hash))
+} // end func Calculate_phpbb3_hash
+
+func Calculate_md5crypt_hash(password, salt string) string {
+  //strip prefix from salt
+  salt_only := salt[3:]
+  pw_bytes := []byte(password)
+  salt_bytes := []byte(salt_only)
+  hash := md5crypt.Crypt(pw_bytes, salt_bytes)
+  return(string(hash))
+}
 
 
 func Calculate_argon2_hash(plaintext, salt string) (hash_string string) {

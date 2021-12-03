@@ -60,6 +60,42 @@ func hash_tests() {
     fmt.Println("vBulletin pre-3.8.5 test failed")
   }
 
+  test_vbulletin_post := hashing.Calculate_vbulletin_post_3_8_5_hash(test_pw, "123")
+  if test_vbulletin_post == "77d3b7ed9db7d236b9eac8262d27f6a5" {
+    fmt.Println("vBulletin pre-3.8.5 test OK")
+  } else {
+    fmt.Println("vBulletin pre-3.8.5 test failed")
+  }
+
+  test_bcrypt := hashing.Calculate_bcrypt_hash("12345", "$2y$10$zbQ1lHHWrT5G2qqSmA4r.u")
+  if test_bcrypt == "$2y$10$zbQ1lHHWrT5G2qqSmA4r.uPc0h/fq6N/ogx5OEH/VwL9NIJIipM9m" {
+    fmt.Println("BCrypt test OK")
+  } else {
+    fmt.Println("BCrypt test failed")
+  }
+
+  test_crc32 := hashing.Calculate_crc32_hash("password")
+  if test_crc32 == "901924565" {
+    fmt.Println("CRC32 test OK")
+  } else {
+    fmt.Println("CRC32 test failed")
+  }
+
+  test_phpbb3 := hashing.Calculate_phpbb3_hash("123456789", "$H$993WP3hbz")
+  if test_phpbb3 == "$H$993WP3hbzy0N22X06wxrCc3800D2p41" {
+    fmt.Println("PHPBB3 test OK")
+  } else {
+    fmt.Println("PHPBB3 test failed")
+  }
+
+  test_md5crypt := hashing.Calculate_md5crypt_hash("123456", "$1$4d3c09ea")
+  if test_md5crypt == "$1$4d3c09ea$hPwyka2ToWFbLTOq.yFjf." {
+    fmt.Println("md5Crypt test OK")
+  } else {
+    fmt.Println("md5Crypt test failed")
+    fmt.Println(test_md5crypt)
+  }
+
 } // end func hash_tests
 
 
