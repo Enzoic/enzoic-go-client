@@ -3,6 +3,7 @@ package enzoic
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"io/ioutil"
 	"net/http"
   "enzoic/hashing"
@@ -232,7 +233,8 @@ func (enzoic *Enzoic) CheckPasswordEx(password string) (exposed bool, relative_e
 //          error if an error condition arises, otherwise nil.
 func (enzoic *Enzoic) CheckCredentials(username, password, last_check_date string, excluded_hash_types []int) (is_compromised bool, err error){
 
-	request_string := enzoic.api_base_url + enzoic.ACCOUNTS_API_PATH + "?username=" + username
+	lowered_username := strings.ToLower(username)
+	request_string := enzoic.api_base_url + enzoic.ACCOUNTS_API_PATH + "?username=" + lowered_username
 	response := enzoic.makeRestApiGetRequest(request_string)
 	defer response.Body.Close()
 
