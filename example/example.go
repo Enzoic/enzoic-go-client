@@ -14,6 +14,7 @@ func example() {
 		panic(err)
 	}
 
+	////////////////////////////////// Passwords API Examples //////////////////////////////////
 	// Check whether a password has been compromised
 	passwordCompromised, err := enzoicClient.CheckPassword("password-to-test")
 	if err != nil {
@@ -25,6 +26,8 @@ func example() {
 	} else {
 		fmt.Println("Password is not compromised")
 	}
+
+	///////////////////////////////// Credentials API Examples /////////////////////////////////
 
 	// Check whether a specific set of credentials are compromised
 	credsCompromised, err := enzoicClient.CheckCredentials("test@enzoic.com", "password-to-test")
@@ -71,6 +74,8 @@ func example() {
 	} else {
 		fmt.Println("Credentials are not compromised")
 	}
+
+	////////////////////////////////// Exposures API Examples //////////////////////////////////
 
 	// get all exposures for the given user
 	//var exposuresForUser []string
@@ -128,6 +133,8 @@ func example() {
 		}
 		// process second page of results, etc.
 	}
+
+	////////////////////////////// Breach Monitoring API Examples //////////////////////////////
 
 	// couple of email addresses you wish to monitor
 	usernames := []string{"eicar_0@enzoic.com", "eicar_1@enzoic.com"}
