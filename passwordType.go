@@ -1,5 +1,8 @@
 package enzoic
 
+// PasswordType is an enum of the different password hashing algorithms that Enzoic has picked up breaches containing.
+// It is used as an informational field in certain responses and can be used with the CheckCredentialsEx function to
+// specify which algorithms should be excluded from its checks, to optimize performance.
 type PasswordType int32
 
 const (

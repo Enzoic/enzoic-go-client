@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	CredentialsAPIPath = "/credentials"
-	PasswordsAPIPath   = "/passwords"
-	ExposuresAPIPath   = "/exposures"
-	AccountsAPIPath    = "/accounts"
-	AlertsServicePath  = "/alert-subscriptions"
+	credentialsAPIPath = "/credentials"
+	passwordsAPIPath   = "/passwords"
+	exposuresAPIPath   = "/exposures"
+	accountsAPIPath    = "/accounts"
+	alertsServicePath  = "/alert-subscriptions"
 )
 
 type Client struct {
@@ -75,17 +75,16 @@ func (e *Client) CheckPassword(password string) (bool, error) {
 // in and can be used as a relative measure of the risk of the password.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/passwords-api
 func (e *Client) CheckPasswordWithExposure(password string, revealedInExposure *bool, exposureCount *int) (bool, error) {
-	md5, _ := CalcMD5(password)
-	sha1, _ := CalcSHA1(password)
-	sha256, _ := CalcSHA256(password)
+	md5, _ := calcMD5(password)
+	sha1, _ := calcSHA1(password)
+	sha256, _ := calcSHA256(password)
 
 	params := url.Values{}
 	params.Set("partial_md5", md5[:10])
 	params.Set("partial_sha1", sha1[:10])
 	params.Set("partial_sha256", sha256[:10])
 
-	//apiUrl := fmt.Sprintf("%s%s?%s", e.baseURL, PasswordsAPIPath, params.Encode())
-	resp, err := e.makeRestCall("GET", PasswordsAPIPath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", passwordsAPIPath, params.Encode(), nil)
 	if err != nil {
 		return false, err
 	}
@@ -154,7 +153,7 @@ func (e *Client) CheckCredentials(username, password string) (bool, error) {
 // the username.  Raw Credentials requires a separate approval to unlock.  If you're interested in getting
 // approved, please contact us through our website.
 func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *time.Time, excludeHashTypes []PasswordType, useRawCredentials bool) (bool, error) {
-	usernameHash, _ := CalcSHA256(strings.ToLower(username))
+	usernameHash, _ := calcSHA256(strings.ToLower(username))
 
 	params := url.Values{}
 	params.Set("username", usernameHash)
@@ -162,7 +161,7 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 		params.Set("includeHashes", "1")
 	}
 
-	resp, err := e.makeRestCall("GET", AccountsAPIPath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", accountsAPIPath, params.Encode(), nil)
 	if err != nil {
 		return false, err
 	}
@@ -239,7 +238,7 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 		}
 
 		if queryString.Len() > 0 {
-			credsResp, err := e.makeRestCall("GET", CredentialsAPIPath, queryString.String(), nil)
+			credsResp, err := e.makeRestCall("GET", credentialsAPIPath, queryString.String(), nil)
 			if err != nil {
 				return false, err
 			}
@@ -279,9 +278,9 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 // username will be hashed using SHA-256 before being passed to the Enzoic API.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-an-email-address
 func (e *Client) GetExposuresForUser(username string) ([]string, error) {
-	usernameHash, _ := CalcSHA256(strings.ToLower(username))
+	usernameHash, _ := calcSHA256(strings.ToLower(username))
 
-	resp, err := e.makeRestCall("GET", ExposuresAPIPath, "username="+usernameHash, nil)
+	resp, err := e.makeRestCall("GET", exposuresAPIPath, "username="+usernameHash, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +320,7 @@ func (e *Client) GetExposedUsersForDomain(domain string, pageSize int, pagingTok
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", ExposuresAPIPath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", exposuresAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +361,7 @@ func (e *Client) GetExposuresForDomain(domain string, pageSize int, pagingToken 
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", ExposuresAPIPath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", exposuresAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +403,7 @@ func (e *Client) GetExposuresForDomainIncludeDetails(domain string, pageSize int
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", ExposuresAPIPath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", exposuresAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +432,7 @@ func (e *Client) GetExposuresForDomainIncludeDetails(domain string, pageSize int
 // GetExposureDetails returns the detailed information for a credentials Exposure.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/retrieve-details-for-an-exposure
 func (e *Client) GetExposureDetails(exposureID string) (*ExposureDetails, error) {
-	resp, err := e.makeRestCall("GET", ExposuresAPIPath, "?id="+exposureID, nil)
+	resp, err := e.makeRestCall("GET", exposuresAPIPath, "?id="+exposureID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -463,8 +462,8 @@ func (e *Client) GetExposureDetails(exposureID string) (*ExposureDetails, error)
 // for your account or you will receive a 403 rejection when attempting to call it.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
 func (e *Client) GetUserPasswords(username string) (*UserPasswords, error) {
-	usernameHash, _ := CalcSHA256(username)
-	resp, err := e.makeRestCall("GET", AccountsAPIPath, "username="+usernameHash+"&includePasswords=1", nil)
+	usernameHash, _ := calcSHA256(username)
+	resp, err := e.makeRestCall("GET", accountsAPIPath, "username="+usernameHash+"&includePasswords=1", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +526,7 @@ func (e *Client) AddUserAlertSubscriptions(usernames []string, customData string
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("POST", AlertsServicePath, "", requestBody)
+	resp, err := e.makeRestCall("POST", alertsServicePath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +566,7 @@ func (e *Client) DeleteUserAlertSubscriptions(usernames []string) (*DeleteSubscr
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("DELETE", AlertsServicePath, "", requestBody)
+	resp, err := e.makeRestCall("DELETE", alertsServicePath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +605,7 @@ func (e *Client) DeleteUserAlertSubscriptionsByCustomData(customData string) (*D
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("DELETE", AlertsServicePath, "", requestBody)
+	resp, err := e.makeRestCall("DELETE", alertsServicePath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +654,7 @@ func (e *Client) GetUserAlertSubscriptionsByCustomData(customData string, pageSi
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", AlertsServicePath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", alertsServicePath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -684,8 +683,8 @@ func (e *Client) GetUserAlertSubscriptionsByCustomData(customData string, pageSi
 // IsUserSubscribedForAlerts takes a username and returns true if the user is subscribed for alerts, false otherwise.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-user#retrieve-current-breach-alert-subscriptions
 func (e *Client) IsUserSubscribedForAlerts(username string) (bool, error) {
-	usernameHash, _ := CalcSHA256(username)
-	resp, err := e.makeRestCall("GET", AlertsServicePath, "usernameHash="+usernameHash, nil)
+	usernameHash, _ := calcSHA256(username)
+	resp, err := e.makeRestCall("GET", alertsServicePath, "usernameHash="+usernameHash, nil)
 	if err != nil {
 		return false, err
 	}
@@ -715,7 +714,7 @@ func (e *Client) AddDomainAlertSubscriptions(domains []string) (*AddSubscription
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("POST", AlertsServicePath, "", requestBody)
+	resp, err := e.makeRestCall("POST", alertsServicePath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -753,7 +752,7 @@ func (e *Client) DeleteDomainAlertSubscriptions(domains []string) (*DeleteSubscr
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("DELETE", AlertsServicePath, "", requestBody)
+	resp, err := e.makeRestCall("DELETE", alertsServicePath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -791,7 +790,7 @@ func (e *Client) GetDomainAlertSubscriptions(pageSize int, pagingToken string) (
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", AlertsServicePath, params.Encode(), nil)
+	resp, err := e.makeRestCall("GET", alertsServicePath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -820,7 +819,7 @@ func (e *Client) GetDomainAlertSubscriptions(pageSize int, pagingToken string) (
 // IsDomainSubscribedForAlerts takes a domain and returns true if the domain is subscribed for alerts, false otherwise.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#retrieve-current-breach-alert-subscriptions
 func (e *Client) IsDomainSubscribedForAlerts(domain string) (bool, error) {
-	resp, err := e.makeRestCall("GET", AlertsServicePath, "domain="+domain, nil)
+	resp, err := e.makeRestCall("GET", alertsServicePath, "domain="+domain, nil)
 	if err != nil {
 		return false, err
 	}
@@ -845,9 +844,9 @@ func containsPasswordType(types []PasswordType, t PasswordType) bool {
 }
 
 func calcCredentialHash(username, password, salt string, spec PasswordHashSpecification) *string {
-	passwordHash, _ := CalcPasswordHash(spec.HashType, password, spec.Salt)
+	passwordHash, _ := calcPasswordHash(spec.HashType, password, spec.Salt)
 	if passwordHash != "" {
-		argon2Hash, _ := CalcArgon2(fmt.Sprintf("%s$%s", username, passwordHash), salt)
+		argon2Hash, _ := calcArgon2(fmt.Sprintf("%s$%s", username, passwordHash), salt)
 		hash := argon2Hash[strings.LastIndex(argon2Hash, "$")+1:]
 		return &hash
 	}
@@ -866,7 +865,7 @@ func containsString(slice []string, str string) bool {
 func hashUsernameList(usernames []string) []string {
 	var usernameHashes []string
 	for _, username := range usernames {
-		usernameHash, _ := CalcSHA256(username)
+		usernameHash, _ := calcSHA256(username)
 		usernameHashes = append(usernameHashes, usernameHash)
 	}
 	return usernameHashes

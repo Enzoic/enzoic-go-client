@@ -18,120 +18,120 @@ import (
 	"strings"
 )
 
-func CalcPasswordHash(passwordType PasswordType, password string, salt string) (string, error) {
+func calcPasswordHash(passwordType PasswordType, password string, salt string) (string, error) {
 	switch passwordType {
 	case BCrypt:
-		return CalcBCrypt(password, salt)
+		return calcBCrypt(password, salt)
 	case CRC32:
-		return CalcCRC32(password)
+		return calcCRC32(password)
 	case CustomAlgorithm1:
-		return CalcCustomAlgorithm1(password, salt)
+		return calcCustomAlgorithm1(password, salt)
 	case CustomAlgorithm2:
-		return CalcMD5(password + salt)
+		return calcMD5(password + salt)
 	case IPBoard_MyBB:
-		return CalcIPBoardHash(password, salt)
+		return calcIPBoardHash(password, salt)
 	case MD5:
-		return CalcMD5(password)
+		return calcMD5(password)
 	case PHPBB3:
-		return CalcPHPBB3(password, salt)
+		return calcPHPBB3(password, salt)
 	case SHA1:
-		return CalcSHA1(password)
+		return calcSHA1(password)
 	case SHA256:
-		return CalcSHA256(password)
+		return calcSHA256(password)
 	case SHA512:
-		return CalcSHA512(password)
+		return calcSHA512(password)
 	case vBulletinPost3_8_5:
-		return CalcVBulletinHash(password, salt)
+		return calcVBulletinHash(password, salt)
 	case vBulletinPre3_8_5:
-		return CalcVBulletinHash(password, salt)
+		return calcVBulletinHash(password, salt)
 	case CustomAlgorithm4:
-		return CalcCustomAlgorithm4(password, salt)
+		return calcCustomAlgorithm4(password, salt)
 	case MD5Crypt:
-		return CalcMD5Crypt([]byte(password), []byte(salt))
+		return calcMD5Crypt([]byte(password), []byte(salt))
 	case CustomAlgorithm5:
-		return CalcCustomAlgorithm5(password, salt)
+		return calcCustomAlgorithm5(password, salt)
 	case DESCrypt:
-		return CalcDESCrypt(password, salt)
+		return calcDESCrypt(password, salt)
 	//case SCrypt:
-	//	return CalcSCrypt(password, salt)
+	//	return calcSCrypt(password, salt)
 	case MySQLPre4_1:
-		return CalcMySQLPre4_1(password)
+		return calcMySQLPre4_1(password)
 	case MySQLPost4_1:
-		return CalcMySQLPost4_1(password)
+		return calcMySQLPost4_1(password)
 	case PeopleSoft:
-		return CalcPeopleSoft(password)
+		return calcPeopleSoft(password)
 	case PunBB:
-		return CalcPunBB(password, salt)
+		return calcPunBB(password, salt)
 	case osCommerce_AEF:
-		return CalcMD5(salt + password)
+		return calcMD5(salt + password)
 	case PartialMD5_20:
-		md5hash, err := CalcMD5(password)
+		md5hash, err := calcMD5(password)
 		return md5hash[0:20], err
 	case AVE_DataLife_Diferior:
-		md5hash, _ := CalcMD5(password)
-		return CalcMD5(md5hash)
+		md5hash, _ := calcMD5(password)
+		return calcMD5(md5hash)
 	case DjangoMD5:
-		hash, _ := CalcMD5(salt + password)
+		hash, _ := calcMD5(salt + password)
 		return "md5$" + salt + "$" + hash, nil
 	case DjangoSHA1:
-		hash, _ := CalcSHA1(salt + password)
+		hash, _ := calcSHA1(salt + password)
 		return "sha1$" + salt + "$" + hash, nil
 	case PartialMD5_29:
-		md5hash, err := CalcMD5(password)
+		md5hash, err := calcMD5(password)
 		return md5hash[0:29], err
 	case PliggCMS:
-		sha1hash, err := CalcSHA1(salt + password)
+		sha1hash, err := calcSHA1(salt + password)
 		return salt + sha1hash, err // salt is prepended to hash
 	case RunCMS_SMF1_1:
-		return CalcSHA1(salt + password) // salt is username
+		return calcSHA1(salt + password) // salt is username
 	case NTLM:
-		return CalcNTLM(password)
+		return calcNTLM(password)
 	case SHA1Dash:
-		return CalcSHA1("--" + salt + "--" + password + "--")
+		return calcSHA1("--" + salt + "--" + password + "--")
 	case SHA384:
-		return CalcSHA384(password)
+		return calcSHA384(password)
 	case CustomAlgorithm7:
-		return CalcCustomAlgorithm7(password, salt)
+		return calcCustomAlgorithm7(password, salt)
 	case CustomAlgorithm8:
-		return CalcSHA256(salt + password)
+		return calcSHA256(salt + password)
 	case CustomAlgorithm9:
-		return CalcCustomAlgorithm9(password, salt)
+		return calcCustomAlgorithm9(password, salt)
 	case SHA512Crypt:
-		return CalcSHA512Crypt(password, salt)
+		return calcSHA512Crypt(password, salt)
 	case CustomAlgorithm10:
-		return CalcSHA512(password + ":" + salt)
+		return calcSHA512(password + ":" + salt)
 	case SHA256Crypt:
-		return CalcSHA256Crypt(password, salt)
+		return calcSHA256Crypt(password, salt)
 	case HMACSHA1_SaltAsKey:
-		return CalcHMACSHA1SaltAsKey(password, salt)
+		return calcHMACSHA1SaltAsKey(password, salt)
 	case AuthMeSHA256:
-		return CalcAuthMeSHA256(password, salt)
+		return calcAuthMeSHA256(password, salt)
 	default:
 		return "", nil
 	}
 }
 
-func CalcMD5(password string) (string, error) {
+func calcMD5(password string) (string, error) {
 	return fmt.Sprintf("%x", md5.Sum([]byte(password))), nil
 }
 
-func CalcSHA1(password string) (string, error) {
+func calcSHA1(password string) (string, error) {
 	return fmt.Sprintf("%x", sha1.Sum([]byte(password))), nil
 }
 
-func CalcSHA256(password string) (string, error) {
+func calcSHA256(password string) (string, error) {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(password))), nil
 }
 
-func CalcSHA384(password string) (string, error) {
+func calcSHA384(password string) (string, error) {
 	return fmt.Sprintf("%x", sha512.Sum384([]byte(password))), nil
 }
 
-func CalcSHA512(password string) (string, error) {
+func calcSHA512(password string) (string, error) {
 	return fmt.Sprintf("%x", sha512.Sum512([]byte(password))), nil
 }
 
-func CalcNTLM(password string) (string, error) {
+func calcNTLM(password string) (string, error) {
 	var bytes []byte
 
 	for _, b := range []byte(password) {
@@ -144,16 +144,16 @@ func CalcNTLM(password string) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func CalcCRC32(password string) (string, error) {
+func calcCRC32(password string) (string, error) {
 	return strconv.FormatUint(uint64(crc32.ChecksumIEEE([]byte(password))), 10), nil
 }
 
-func CalcBCrypt(password string, salt string) (string, error) {
-	hashed, err := BCryptHash([]byte(password), []byte(salt))
+func calcBCrypt(password string, salt string) (string, error) {
+	hashed, err := bcryptHash([]byte(password), []byte(salt))
 	return string(hashed), err
 }
 
-func CalcCustomAlgorithm1(password string, salt string) (string, error) {
+func calcCustomAlgorithm1(password string, salt string) (string, error) {
 	// SHA-512(pass.salt) XOR whirlpool(salt.pass)
 	sha512Out := sha512.Sum512([]byte(password + salt))
 
@@ -172,15 +172,15 @@ func CalcCustomAlgorithm1(password string, salt string) (string, error) {
 	return fmt.Sprintf("%x", finalOut), nil
 }
 
-func CalcIPBoardHash(password string, salt string) (string, error) {
-	saltHash, _ := CalcMD5(salt)
-	passwordHash, _ := CalcMD5(password)
-	return CalcMD5(saltHash + passwordHash)
+func calcIPBoardHash(password string, salt string) (string, error) {
+	saltHash, _ := calcMD5(salt)
+	passwordHash, _ := calcMD5(password)
+	return calcMD5(saltHash + passwordHash)
 }
 
 const itoa64 = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-func CalcPHPBB3(password string, salt string) (string, error) {
+func calcPHPBB3(password string, salt string) (string, error) {
 	if salt[0:3] != "$H$" {
 		return "", errors.New("invalid salt for phpbb3")
 	}
@@ -228,12 +228,12 @@ func CalcPHPBB3(password string, salt string) (string, error) {
 	return salt + hashout, nil
 }
 
-func CalcVBulletinHash(password string, salt string) (string, error) {
-	hash, _ := CalcMD5(password)
-	return CalcMD5(hash + salt)
+func calcVBulletinHash(password string, salt string) (string, error) {
+	hash, _ := calcMD5(password)
+	return calcMD5(hash + salt)
 }
 
-func CalcMD5Crypt(password []byte, rawSalt []byte) (string, error) {
+func calcMD5Crypt(password []byte, rawSalt []byte) (string, error) {
 	var md5CryptSwaps = [16]int{12, 6, 0, 13, 7, 1, 14, 8, 2, 15, 9, 3, 5, 10, 4, 11}
 
 	salt := rawSalt[3:]
@@ -302,21 +302,21 @@ func CalcMD5Crypt(password []byte, rawSalt []byte) (string, error) {
 	return string(append(append(append([]byte("$1$"), salt...), '$'), result...)), nil
 }
 
-func CalcCustomAlgorithm4(password string, salt string) (string, error) {
-	hash, _ := CalcMD5(password)
-	return CalcBCrypt(hash, salt)
+func calcCustomAlgorithm4(password string, salt string) (string, error) {
+	hash, _ := calcMD5(password)
+	return calcBCrypt(hash, salt)
 }
 
-func CalcCustomAlgorithm5(password string, salt string) (string, error) {
-	hash, _ := CalcMD5(password + salt)
-	return CalcSHA256(hash)
+func calcCustomAlgorithm5(password string, salt string) (string, error) {
+	hash, _ := calcMD5(password + salt)
+	return calcSHA256(hash)
 }
 
-func CalcDESCrypt(password string, salt string) (string, error) {
-	return Descrypt(password, salt), nil
+func calcDESCrypt(password string, salt string) (string, error) {
+	return descrypt(password, salt), nil
 }
 
-func CalcMySQLPre4_1(password string) (string, error) {
+func calcMySQLPre4_1(password string) (string, error) {
 	nr := uint(1345345333)
 	add := uint(7)
 	nr2 := uint(0x12345671)
@@ -338,13 +338,13 @@ func CalcMySQLPre4_1(password string) (string, error) {
 	return fmt.Sprintf("%x", result1) + fmt.Sprintf("%x", result2), nil
 }
 
-func CalcMySQLPost4_1(password string) (string, error) {
+func calcMySQLPost4_1(password string) (string, error) {
 	hash := sha1.Sum([]byte(password))
 	hash2 := fmt.Sprintf("%x", sha1.Sum(hash[:]))
 	return "*" + hash2, nil
 }
 
-func CalcPeopleSoft(password string) (string, error) {
+func calcPeopleSoft(password string) (string, error) {
 	var bytes []byte
 
 	for _, b := range []byte(password) {
@@ -356,50 +356,50 @@ func CalcPeopleSoft(password string) (string, error) {
 	return base64.StdEncoding.EncodeToString(hash[:]), nil
 }
 
-func CalcPunBB(password string, salt string) (string, error) {
-	hash, _ := CalcSHA1(password)
-	return CalcSHA1(salt + hash)
+func calcPunBB(password string, salt string) (string, error) {
+	hash, _ := calcSHA1(password)
+	return calcSHA1(salt + hash)
 }
 
-func CalcCustomAlgorithm7(password string, salt string) (string, error) {
-	derivedSalt, _ := CalcSHA1(salt)
+func calcCustomAlgorithm7(password string, salt string) (string, error) {
+	derivedSalt, _ := calcSHA1(salt)
 
 	h := hmac.New(sha256.New, []byte("d2e1a4c569e7018cc142e9cce755a964bd9b193d2d31f02d80bb589c959afd7e"))
 	h.Write([]byte(derivedSalt + password))
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func CalcCustomAlgorithm9(password string, salt string) (string, error) {
-	result, _ := CalcSHA512(password + salt)
+func calcCustomAlgorithm9(password string, salt string) (string, error) {
+	result, _ := calcSHA512(password + salt)
 
 	for i := 0; i < 11; i += 1 {
-		result, _ = CalcSHA512(result)
+		result, _ = calcSHA512(result)
 	}
 
 	return result, nil
 }
 
-func CalcHMACSHA1SaltAsKey(password string, salt string) (string, error) {
+func calcHMACSHA1SaltAsKey(password string, salt string) (string, error) {
 	h := hmac.New(sha1.New, []byte(salt))
 	h.Write([]byte(password))
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func CalcSHA256Crypt(password string, salt string) (string, error) {
-	return ShaCryptEncrypt(password, salt)
+func calcSHA256Crypt(password string, salt string) (string, error) {
+	return shaCryptEncrypt(password, salt)
 }
 
-func CalcSHA512Crypt(password string, salt string) (string, error) {
-	return ShaCryptEncrypt(password, salt)
+func calcSHA512Crypt(password string, salt string) (string, error) {
+	return shaCryptEncrypt(password, salt)
 }
 
-func CalcAuthMeSHA256(password string, salt string) (string, error) {
-	hash, _ := CalcSHA256(password)
-	hash2, _ := CalcSHA256(hash + salt)
+func calcAuthMeSHA256(password string, salt string) (string, error) {
+	hash, _ := calcSHA256(password)
+	hash2, _ := calcSHA256(hash + salt)
 	return "$SHA$" + salt + "$" + hash2, nil
 }
 
-func CalcArgon2(toHash string, salt string) (string, error) {
+func calcArgon2(toHash string, salt string) (string, error) {
 	var justSalt []byte
 	var err error
 
@@ -416,7 +416,7 @@ func CalcArgon2(toHash string, salt string) (string, error) {
 		justSalt = []byte(salt)
 	}
 
-	return fmt.Sprintf("%x", DKey([]byte(toHash), justSalt, 3, 1024, 2, 20)), nil
+	return fmt.Sprintf("%x", dkey([]byte(toHash), justSalt, 3, 1024, 2, 20)), nil
 
 	// prepend salt and options
 	//return "$argon2d$v=19$m=1024,t=3,p=2$" + base64.RawStdEncoding.EncodeToString(justSalt) + "$" + base64Result, nil

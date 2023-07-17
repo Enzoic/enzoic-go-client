@@ -63,7 +63,7 @@ var shuffleMap = [][]int32{
 
 const roundsDefault = 5000
 
-func ShaCryptEncrypt(plaintext string, salt string) (string, error) {
+func shaCryptEncrypt(plaintext string, salt string) (string, error) {
 	saltConf, err := parseSalt(salt)
 	if err != nil {
 		return "", err

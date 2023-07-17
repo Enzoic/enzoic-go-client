@@ -9,28 +9,27 @@ import (
 )
 
 const (
-	MinCost     int = 4  // the minimum allowable cost as passed in to GenerateFromPassword
-	MaxCost     int = 31 // the maximum allowable cost as passed in to GenerateFromPassword
-	DefaultCost int = 10 // the cost that will actually be set if a cost below MinCost is passed into GenerateFromPassword
+	minCost int = 4  // the minimum allowable cost as passed in to GenerateFromPassword
+	maxCost int = 31 // the maximum allowable cost as passed in to GenerateFromPassword
 )
 
-type HashVersionTooNewError byte
+type hashVersionTooNewError byte
 
-func (hv HashVersionTooNewError) Error() string {
+func (hv hashVersionTooNewError) Error() string {
 	return fmt.Sprintf("crypto/bcrypt: bcrypt algorithm version '%c' requested is newer than current version '%c'", byte(hv), majorVersion)
 }
 
 // The error returned from CompareHashAndPassword when a hash starts with something other than '$'
-type InvalidHashPrefixError byte
+type invalidHashPrefixError byte
 
-func (ih InvalidHashPrefixError) Error() string {
+func (ih invalidHashPrefixError) Error() string {
 	return fmt.Sprintf("crypto/bcrypt: bcrypt hashes must start with '$', but hashedSecret started with '%c'", byte(ih))
 }
 
-type InvalidCostError int
+type invalidCostError int
 
-func (ic InvalidCostError) Error() string {
-	return fmt.Sprintf("crypto/bcrypt: cost %d is outside allowed range (%d,%d)", int(ic), MinCost, MaxCost)
+func (ic invalidCostError) Error() string {
+	return fmt.Sprintf("crypto/bcrypt: cost %d is outside allowed range (%d,%d)", int(ic), minCost, maxCost)
 }
 
 const (
@@ -62,7 +61,7 @@ type hashed struct {
 	minor byte
 }
 
-func BCryptHash(password []byte, salt []byte) (string, error) {
+func bcryptHash(password []byte, salt []byte) (string, error) {
 	p := new(hashed)
 	originalSalt := salt
 	n, err := p.decodeVersion(salt)
@@ -159,10 +158,10 @@ func (p *hashed) Hash() []byte {
 
 func (p *hashed) decodeVersion(sbytes []byte) (int, error) {
 	if sbytes[0] != '$' {
-		return -1, InvalidHashPrefixError(sbytes[0])
+		return -1, invalidHashPrefixError(sbytes[0])
 	}
 	if sbytes[1] > majorVersion {
-		return -1, HashVersionTooNewError(sbytes[1])
+		return -1, hashVersionTooNewError(sbytes[1])
 	}
 	p.major = sbytes[1]
 	n := 3
@@ -192,8 +191,8 @@ func (p *hashed) String() string {
 }
 
 func checkCost(cost int) error {
-	if cost < MinCost || cost > MaxCost {
-		return InvalidCostError(cost)
+	if cost < minCost || cost > maxCost {
+		return invalidCostError(cost)
 	}
 	return nil
 }

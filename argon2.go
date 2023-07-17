@@ -11,7 +11,7 @@ import (
 )
 
 // The Argon2 version implemented by this package.
-const Version = 0x13
+const version = 0x13
 
 const (
 	argon2d = iota
@@ -19,7 +19,7 @@ const (
 	argon2id
 )
 
-func DKey(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
+func dkey(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
 	return deriveKey(argon2d, password, salt, nil, nil, time, memory, threads, keyLen)
 }
 
@@ -60,7 +60,7 @@ func initHash(password, salt, key, data []byte, time, memory, threads, keyLen ui
 	binary.LittleEndian.PutUint32(params[4:8], keyLen)
 	binary.LittleEndian.PutUint32(params[8:12], memory)
 	binary.LittleEndian.PutUint32(params[12:16], time)
-	binary.LittleEndian.PutUint32(params[16:20], uint32(Version))
+	binary.LittleEndian.PutUint32(params[16:20], uint32(version))
 	binary.LittleEndian.PutUint32(params[20:24], uint32(mode))
 	b2.Write(params[:])
 	binary.LittleEndian.PutUint32(tmp[:], uint32(len(password)))

@@ -441,7 +441,7 @@ func des_do_des() {
 
 var initialized = false
 
-func Descrypt(key string, salt_str string) string {
+func descrypt(key string, salt_str string) string {
 	if initialized == false {
 		des_init()
 		initialized = true
