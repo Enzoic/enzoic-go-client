@@ -94,7 +94,7 @@ if credsCompromised {
 // get all passwords Enzoic has for the specified user.  Your account must have approval to call this API.
 // returns results per 
 //https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
-userPasswords, err := enzoicClient.GetUserPasswords("eicar_0@enzoic.com")
+userPasswords, err := enzoicClient.GetUserPasswordsWithExposureDetails("eicar_0@enzoic.com")
 if err != nil {panic(err)}
 
 // print user passwords

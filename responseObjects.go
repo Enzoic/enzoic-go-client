@@ -45,9 +45,21 @@ type PasswordDetails struct {
 	Exposures []string     `json:"exposures"`
 }
 
+type PasswordDetailsWithExposureDetails struct {
+	HashType  PasswordType      `json:"hashType"`
+	Password  string            `json:"password"`
+	Salt      string            `json:"salt"`
+	Exposures []ExposureDetails `json:"exposures"`
+}
+
 type UserPasswords struct {
 	LastBreachDate time.Time         `json:"lastBreachDate"`
 	Passwords      []PasswordDetails `json:"passwords"`
+}
+
+type UserPasswordsWithExposureDetails struct {
+	LastBreachDate time.Time                            `json:"lastBreachDate"`
+	Passwords      []PasswordDetailsWithExposureDetails `json:"passwords"`
 }
 
 type ExposedUserForDomain struct {

@@ -177,6 +177,38 @@ func TestEnzoic_GetUserPasswords(t *testing.T) {
 	assert.Nil(t, userPasswords2)
 }
 
+func TestEnzoic_GetUserPasswordsWithExposureDetails(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	userPasswords, _ := enzoicClient.GetUserPasswordsWithExposureDetails("eicar_8@enzoic.com")
+	expectedDate := time.Date(2010, time.January, 1, 7, 0, 0, 0, time.UTC)
+	expectedAddDate := time.Date(2017, time.April, 8, 2, 7, 44, 0, time.UTC)
+	assert.Equal(t, &UserPasswordsWithExposureDetails{
+		LastBreachDate: time.Date(2017, time.April, 8, 2, 7, 44, 0, time.UTC),
+		Passwords: []PasswordDetailsWithExposureDetails{
+			PasswordDetailsWithExposureDetails{
+				HashType: 8,
+				Password: "$2a$04$yyJQsNrcBeTRgYNf4HCTxefTL9n7rFYywPxdXU9YRRTgkaZaNkgyu",
+				Salt:     "$2a$04$yyJQsNrcBeTRgYNf4HCTxe",
+				Exposures: []ExposureDetails{
+					ExposureDetails{
+						ID:              "58e845f04d6db222103001df",
+						Title:           "passwordping.com test breach BCrypt",
+						Category:        "Testing Ignore",
+						Date:            &expectedDate,
+						Entries:         1,
+						PasswordType:    "BCrypt",
+						ExposedData:     []string{"Emails", "Passwords"},
+						DomainsAffected: 1,
+						DateAdded:       &expectedAddDate,
+						SourceURLs:      []string{},
+					},
+				},
+			},
+		},
+	}, userPasswords)
+}
+
 func TestEnzoic_GetExposedUsersForDomain(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 

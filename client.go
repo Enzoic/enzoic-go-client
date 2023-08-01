@@ -496,6 +496,44 @@ func (e *Client) GetUserPasswords(username string) (*UserPasswords, error) {
 	return &result, nil
 }
 
+// GetUserPasswords returns a list of passwords that Enzoic has found for a specific user.  This call must be enabled
+// for your account or you will receive a 403 rejection when attempting to call it.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
+func (e *Client) GetUserPasswordsWithExposureDetails(username string) (*UserPasswordsWithExposureDetails, error) {
+	usernameHash, _ := calcSHA256(username)
+	resp, err := e.makeRestCall("GET", accountsAPIPath, "username="+usernameHash+"&includePasswords=1&includeExposureDetails=1", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		// User not found in the database
+		return nil, nil
+	} else if resp.StatusCode == http.StatusForbidden {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("Call was rejected for the following reason: %s", body)
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get user passwords: %s", resp.Status)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var result UserPasswordsWithExposureDetails
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
 // AddUserAlertSubscriptions takes an array of email addresses and adds them to the list of users your account monitors
 // for new credentials exposures.  The customData parameter can optionally be used with any string value to tag the
 // new subscription items with a custom value.  This value will be sent to your webhook when a new alert is found for
