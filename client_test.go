@@ -177,6 +177,66 @@ func TestEnzoic_GetUserPasswords(t *testing.T) {
 	assert.Nil(t, userPasswords2)
 }
 
+func TestEnzoic_GetUserPasswordsUsingPartialHash(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	userPasswords, _ := enzoicClient.GetUserPasswordsUsingPartialHash("eicar_0@enzoic.com")
+	assert.Equal(t, &UserPasswords{
+		LastBreachDate: time.Date(2022, time.October, 14, 7, 2, 40, 0, time.UTC),
+		Passwords: []PasswordDetails{
+			PasswordDetails{
+				HashType:  0,
+				Password:  "password123",
+				Salt:      "",
+				Exposures: []string{"634908d2e0513eb0788aa0b9", "634908d06715cc1b5b201a1a"},
+			},
+			PasswordDetails{
+				HashType:  0,
+				Password:  "g0oD_on3",
+				Salt:      "",
+				Exposures: []string{"634908d2e0513eb0788aa0b9"},
+			},
+			PasswordDetails{
+				HashType:  0,
+				Password:  "Easy2no",
+				Salt:      "",
+				Exposures: []string{"634908d26715cc1b5b201a1d"},
+			},
+			PasswordDetails{
+				HashType:  0,
+				Password:  "123456",
+				Salt:      "",
+				Exposures: []string{"63490990e0513eb0788aa0d1", "634908d0e0513eb0788aa0b5"},
+			},
+		},
+	}, userPasswords)
+
+	userPasswords, _ = enzoicClient.GetUserPasswordsUsingPartialHash("eicar_type8@enzoic.com")
+	assert.Equal(t, &UserPasswords{
+		LastBreachDate: time.Date(2022, time.May, 3, 5, 12, 43, 0, time.UTC),
+		Passwords: []PasswordDetails{
+			PasswordDetails{
+				HashType:  8,
+				Password:  "$2a$10$LuodKoFv1YoTRpRBHjfeJ.HsMNx6Ln/Qo/jlSHDa6XpWm/SYoSroG",
+				Salt:      "$2a$10$LuodKoFv1YoTRpRBHjfeJ.",
+				Exposures: []string{"6270b9cb0323b3bb8faed96c"},
+			},
+			PasswordDetails{
+				HashType:  8,
+				Password:  "$2y$04$dgoRREIMJItkLVH7xpSpo.tqkpEM5J/JU9HB4LNO9eD/aygJN3dZ2",
+				Salt:      "$2y$04$dgoRREIMJItkLVH7xpSpo.",
+				Exposures: []string{"6270b9cb0323b3bb8faed96c"},
+			},
+		},
+	}, userPasswords)
+
+	// test account without permissions
+	enzoicClient, _ = NewClient(os.Getenv("PP_API_KEY_2"), os.Getenv("PP_API_SECRET_2"))
+	userPasswords2, err := enzoicClient.GetUserPasswords("eicar_0@enzoic.com")
+	assert.Equal(t, "Call was rejected for the following reason: Your account is not allowed to make this call.  Please contact sales@enzoic.com.", err.Error())
+	assert.Nil(t, userPasswords2)
+}
+
 func TestEnzoic_GetUserPasswordsWithExposureDetails(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 

@@ -496,7 +496,58 @@ func (e *Client) GetUserPasswords(username string) (*UserPasswords, error) {
 	return &result, nil
 }
 
-// GetUserPasswords returns a list of passwords that Enzoic has found for a specific user.  This call must be enabled
+// GetUserPasswordsUsingPartialHash returns a list of passwords that Enzoic has found for a specific user.  This call must be enabled
+// for your account or you will receive a 403 rejection when attempting to call it.
+// NOTE: THIS VARIANT OF THE CALL CAN BE USED TO PASS A PARTIAL SHA-256 HASH OF THE USERNAME RATHER THAN THE FULL HASH.
+// We do not recommend using this variant unless you have compliance requirements that prevent you from passing even
+// a hash of a user's email address to a 3rd party, as it will not perform as well as GetUserPasswords, which passes the
+// exact hash.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
+func (e *Client) GetUserPasswordsUsingPartialHash(username string) (*UserPasswords, error) {
+	usernameHash, _ := calcSHA256(username)
+	partialUsernameHash := usernameHash[0:8]
+	resp, err := e.makeRestCall("GET", accountsAPIPath, "partialUsernameHash="+partialUsernameHash+"&includePasswords=1", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		// User not found in the database
+		return nil, nil
+	} else if resp.StatusCode == http.StatusForbidden {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("Call was rejected for the following reason: %s", body)
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get user passwords: %s", resp.Status)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var candidates UserPasswordsCandidatesFromUsingPartialHash
+	err = json.Unmarshal(body, &candidates)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(candidates.Candidates); i++ {
+		if candidates.Candidates[i].UsernameHash == usernameHash {
+			return &candidates.Candidates[i].UserPasswords, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// Deprecated: GetUserPasswordsWithExposureDetails IS DEPRECATED DUE TO SEVERE PERFORMANCE ISSUES AND WILL BE REMOVED IN A FUTURE RELEASE.
+// INSTEAD, USE GetUserPasswords AND LOOKUP EXPOSURE DETAILS AS NECESSARY USING GetExposureDetails.
+// GetUserPasswordsWithExposureDetails returns a list of passwords that Enzoic has found for a specific user.  This call must be enabled
 // for your account or you will receive a 403 rejection when attempting to call it.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
 func (e *Client) GetUserPasswordsWithExposureDetails(username string) (*UserPasswordsWithExposureDetails, error) {

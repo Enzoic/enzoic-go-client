@@ -57,6 +57,15 @@ type UserPasswords struct {
 	Passwords      []PasswordDetails `json:"passwords"`
 }
 
+type UserPasswordsCandidatesFromUsingPartialHash struct {
+	Candidates []UserPasswordsCandidateFromUsingPartialHash `json:"candidates"`
+}
+
+type UserPasswordsCandidateFromUsingPartialHash struct {
+	UsernameHash string `json:"usernameHash"`
+	UserPasswords
+}
+
 type UserPasswordsWithExposureDetails struct {
 	LastBreachDate time.Time                            `json:"lastBreachDate"`
 	Passwords      []PasswordDetailsWithExposureDetails `json:"passwords"`
