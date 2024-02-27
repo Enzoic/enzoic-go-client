@@ -5,6 +5,7 @@ import (
 	"gopkg.in/stretchr/testify.v1/assert"
 	"log"
 	"os"
+	"slices"
 	"testing"
 	"time"
 )
@@ -19,6 +20,28 @@ func TestEnzoic_CheckPassword(t *testing.T) {
 	assert.True(t, isCompromised)
 
 	isCompromised, err = enzoicClient.CheckPassword("definitely_not_compromised_and_never_will_be_a9a90149-307d-4ec6-9132-23008d5080ae")
+	if err != nil {
+		log.Fatal(err)
+	}
+	assert.False(t, isCompromised)
+}
+
+func TestEnzoic_CheckPasswordHash(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	isCompromised, err := enzoicClient.CheckPasswordHash("8743b52063cd84097a65d1633f5c74f5", MD5)
+	if err != nil {
+		log.Fatal(err)
+	}
+	assert.True(t, isCompromised)
+
+	isCompromised, err = enzoicClient.CheckPasswordHash("b4b9b02e6f09a9bd760f388b67351e2b", NTLM)
+	if err != nil {
+		log.Fatal(err)
+	}
+	assert.True(t, isCompromised)
+
+	isCompromised, err = enzoicClient.CheckPasswordHash("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", MD5)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,6 +68,24 @@ func TestEnzoic_CheckPasswordWithExposure(t *testing.T) {
 	assert.True(t, isCompromised)
 	assert.False(t, revealedInExposure)
 	assert.Equal(t, exposureCount, 0)
+}
+
+func TestEnzoic_RetrieveCandidatesForPartialPasswordHash(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	candidates, err := enzoicClient.RetrieveCandidatesForPartialPasswordHash("8743b52", MD5)
+	if err != nil {
+		log.Fatal(err)
+	}
+	assert.True(t, len(candidates) > 0)
+	assert.True(t, slices.Contains(candidates, "8743b52ec575aeef17d9e8ec01012fab"))
+
+	candidates, err = enzoicClient.RetrieveCandidatesForPartialPasswordHash("b4b9b02", NTLM)
+	if err != nil {
+		log.Fatal(err)
+	}
+	assert.True(t, len(candidates) > 0)
+	assert.True(t, slices.Contains(candidates, "b4b9b0202d6cfd7484172460469338ce"))
 }
 
 func TestEnzoic_CheckCredentials(t *testing.T) {
@@ -80,17 +121,10 @@ func TestEnzoic_GetExposuresForUser(t *testing.T) {
 	exposures, _ := enzoicClient.GetExposuresForUser("@@bogus-username@@")
 	assert.Equal(t, 0, len(exposures))
 
-	exposures, _ = enzoicClient.GetExposuresForUser("eicar")
-	assert.Equal(t, 8, len(exposures))
+	exposures, _ = enzoicClient.GetExposuresForUser("eicar_type0@enzoic.com")
+	assert.Equal(t, 1, len(exposures))
 	assert.Equal(t, []string{
-		"5820469ffdb8780510b329cc",
-		"58258f5efdb8780be88c2c5d",
-		"582a8e51fdb87806acc426ff",
-		"583d2f9e1395c81f4cfa3479",
-		"59ba1aa369644815dcd8683e",
-		"59cae0ce1d75b80e0070957c",
-		"5bc64f5f4eb6d894f09eae70",
-		"5bdcb0944eb6d8a97cfacdff",
+		"5d97d14faa8feb16b0f9fd5f",
 	}, exposures)
 }
 
@@ -124,25 +158,25 @@ func TestEnzoic_GetUserPasswords(t *testing.T) {
 	assert.Equal(t, &UserPasswords{
 		LastBreachDate: time.Date(2022, time.October, 14, 7, 2, 40, 0, time.UTC),
 		Passwords: []PasswordDetails{
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "password123",
 				Salt:      "",
 				Exposures: []string{"634908d2e0513eb0788aa0b9", "634908d06715cc1b5b201a1a"},
 			},
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "g0oD_on3",
 				Salt:      "",
 				Exposures: []string{"634908d2e0513eb0788aa0b9"},
 			},
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "Easy2no",
 				Salt:      "",
 				Exposures: []string{"634908d26715cc1b5b201a1d"},
 			},
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "123456",
 				Salt:      "",
@@ -155,13 +189,13 @@ func TestEnzoic_GetUserPasswords(t *testing.T) {
 	assert.Equal(t, &UserPasswords{
 		LastBreachDate: time.Date(2022, time.May, 3, 5, 12, 43, 0, time.UTC),
 		Passwords: []PasswordDetails{
-			PasswordDetails{
+			{
 				HashType:  8,
 				Password:  "$2a$10$LuodKoFv1YoTRpRBHjfeJ.HsMNx6Ln/Qo/jlSHDa6XpWm/SYoSroG",
 				Salt:      "$2a$10$LuodKoFv1YoTRpRBHjfeJ.",
 				Exposures: []string{"6270b9cb0323b3bb8faed96c"},
 			},
-			PasswordDetails{
+			{
 				HashType:  8,
 				Password:  "$2y$04$dgoRREIMJItkLVH7xpSpo.tqkpEM5J/JU9HB4LNO9eD/aygJN3dZ2",
 				Salt:      "$2y$04$dgoRREIMJItkLVH7xpSpo.",
@@ -184,25 +218,25 @@ func TestEnzoic_GetUserPasswordsUsingPartialHash(t *testing.T) {
 	assert.Equal(t, &UserPasswords{
 		LastBreachDate: time.Date(2022, time.October, 14, 7, 2, 40, 0, time.UTC),
 		Passwords: []PasswordDetails{
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "password123",
 				Salt:      "",
 				Exposures: []string{"634908d2e0513eb0788aa0b9", "634908d06715cc1b5b201a1a"},
 			},
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "g0oD_on3",
 				Salt:      "",
 				Exposures: []string{"634908d2e0513eb0788aa0b9"},
 			},
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "Easy2no",
 				Salt:      "",
 				Exposures: []string{"634908d26715cc1b5b201a1d"},
 			},
-			PasswordDetails{
+			{
 				HashType:  0,
 				Password:  "123456",
 				Salt:      "",
@@ -215,13 +249,13 @@ func TestEnzoic_GetUserPasswordsUsingPartialHash(t *testing.T) {
 	assert.Equal(t, &UserPasswords{
 		LastBreachDate: time.Date(2022, time.May, 3, 5, 12, 43, 0, time.UTC),
 		Passwords: []PasswordDetails{
-			PasswordDetails{
+			{
 				HashType:  8,
 				Password:  "$2a$10$LuodKoFv1YoTRpRBHjfeJ.HsMNx6Ln/Qo/jlSHDa6XpWm/SYoSroG",
 				Salt:      "$2a$10$LuodKoFv1YoTRpRBHjfeJ.",
 				Exposures: []string{"6270b9cb0323b3bb8faed96c"},
 			},
-			PasswordDetails{
+			{
 				HashType:  8,
 				Password:  "$2y$04$dgoRREIMJItkLVH7xpSpo.tqkpEM5J/JU9HB4LNO9eD/aygJN3dZ2",
 				Salt:      "$2y$04$dgoRREIMJItkLVH7xpSpo.",
@@ -246,12 +280,12 @@ func TestEnzoic_GetUserPasswordsWithExposureDetails(t *testing.T) {
 	assert.Equal(t, &UserPasswordsWithExposureDetails{
 		LastBreachDate: time.Date(2017, time.April, 8, 2, 7, 44, 0, time.UTC),
 		Passwords: []PasswordDetailsWithExposureDetails{
-			PasswordDetailsWithExposureDetails{
+			{
 				HashType: 8,
 				Password: "$2a$04$yyJQsNrcBeTRgYNf4HCTxefTL9n7rFYywPxdXU9YRRTgkaZaNkgyu",
 				Salt:     "$2a$04$yyJQsNrcBeTRgYNf4HCTxe",
 				Exposures: []ExposureDetails{
-					ExposureDetails{
+					{
 						ID:              "58e845f04d6db222103001df",
 						Title:           "passwordping.com test breach BCrypt",
 						Category:        "Testing Ignore",
@@ -269,6 +303,28 @@ func TestEnzoic_GetUserPasswordsWithExposureDetails(t *testing.T) {
 	}, userPasswords)
 }
 
+func TestEnzoic_GetUserPasswordsByDomain(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	userPasswords, _ := enzoicClient.GetUserPasswordsByDomain("enzoic.com", 0, "")
+	//expectedDate := time.Date(2010, time.January, 1, 7, 0, 0, 0, time.UTC)
+	//expectedAddDate := time.Date(2017, time.April, 8, 2, 7, 44, 0, time.UTC)
+	assert.Equal(t, 94, userPasswords.Count)
+	assert.Equal(t, "", userPasswords.PagingToken)
+	assert.Equal(t, 94, len(userPasswords.Users))
+	assert.Equal(t, UsersWithPasswordsByDomain{
+		Username: "eicar_8@enzoic.com",
+		Passwords: []PasswordDetails{
+			{
+				HashType:  8,
+				Password:  "$2a$04$yyJQsNrcBeTRgYNf4HCTxefTL9n7rFYywPxdXU9YRRTgkaZaNkgyu",
+				Salt:      "$2a$04$yyJQsNrcBeTRgYNf4HCTxe",
+				Exposures: []string{"58e845f04d6db222103001df"},
+			},
+		},
+	}, userPasswords.Users[6])
+}
+
 func TestEnzoic_GetExposedUsersForDomain(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -283,11 +339,11 @@ func TestEnzoic_GetExposedUsersForDomain(t *testing.T) {
 	assert.Equal(t, ExposedUsersForDomain{
 		Count: 12,
 		Users: []ExposedUserForDomain{
-			ExposedUserForDomain{
+			{
 				Username:  "sample@email.tst",
 				Exposures: []string{"57dc11964d6db21300991b78", "5805029914f33808dc802ff7", "57ffcf3c1395c80b30dd4429", "598e5b844eb6d82ea07c5783", "59bbf691e5017d2dc8a96eab", "59bc2016e5017d2dc8bdc36a", "59bebae9e5017d2dc85fc2ab", "59f36f8c4eb6d85ba0bee09c", "5bcf9af3e5017d07201e2149", "5c4f818bd3cef70e983dda1e"},
 			},
-			ExposedUserForDomain{
+			{
 				Username:  "xxxxxxxxxx@email.tst",
 				Exposures: []string{"5805029914f33808dc802ff7"},
 			},
@@ -299,8 +355,8 @@ func TestEnzoic_GetExposedUsersForDomain(t *testing.T) {
 	assert.Equal(t, ExposedUsersForDomain{
 		Count: 12,
 		Users: []ExposedUserForDomain{
-			ExposedUserForDomain{Username: "cbeiqvf@email.tst", Exposures: []string{"5805029914f33808dc802ff7"}},
-			ExposedUserForDomain{Username: "yjybey@email.tst", Exposures: []string{"5805029914f33808dc802ff7"}}},
+			{Username: "cbeiqvf@email.tst", Exposures: []string{"5805029914f33808dc802ff7"}},
+			{Username: "yjybey@email.tst", Exposures: []string{"5805029914f33808dc802ff7"}}},
 		PagingToken: "580bf3cafdb8780bb001abcb",
 	}, *exposedUsersForDomain)
 }
@@ -348,7 +404,7 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 	assert.Equal(t, ExposuresForDomainIncludeDetails{
 		Count: 10,
 		Exposures: []ExposureDetails{
-			ExposureDetails{
+			{
 				ID:              "57dc11964d6db21300991b78",
 				Title:           "funsurveys.net",
 				Entries:         5123,
@@ -360,7 +416,7 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 				SourceURLs:      []string{},
 				DomainsAffected: 683,
 			},
-			ExposureDetails{
+			{
 				ID:              "57ffcf3c1395c80b30dd4429",
 				Title:           "linkedin.com",
 				Entries:         117046470,
@@ -384,7 +440,7 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 	assert.Equal(t, ExposuresForDomainIncludeDetails{
 		Count: 10,
 		Exposures: []ExposureDetails{
-			ExposureDetails{
+			{
 				ID:              "5805029914f33808dc802ff7",
 				Title:           "exploit.in database compilation",
 				Entries:         698291348,
@@ -396,7 +452,7 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 				SourceURLs:      []string{},
 				DomainsAffected: 9436897,
 			},
-			ExposureDetails{
+			{
 				ID:       "598e5b844eb6d82ea07c5783",
 				Title:    "anonjdb",
 				Entries:  706,
@@ -572,8 +628,11 @@ func TestEnzoic_GetDomainAlertSubscriptions(t *testing.T) {
 		"testadddomain2.com",
 	}
 
+	// clean out existing subscriptions
+	getResponse, _ := enzoicClient.GetDomainAlertSubscriptions(100, "")
+	enzoicClient.DeleteDomainAlertSubscriptions(getResponse.Domains)
+
 	// add test subscriptions
-	enzoicClient.DeleteDomainAlertSubscriptions(testDomains)
 	response2, err := enzoicClient.AddDomainAlertSubscriptions(testDomains)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, response2.Added)

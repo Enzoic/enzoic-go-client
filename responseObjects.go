@@ -52,6 +52,12 @@ type PasswordDetailsWithExposureDetails struct {
 	Exposures []ExposureDetails `json:"exposures"`
 }
 
+type UsersWithPasswords struct {
+	Username       string            `json:"username"`
+	LastBreachDate time.Time         `json:"lastBreachDate"`
+	Passwords      []PasswordDetails `json:"passwords"`
+}
+
 type UserPasswords struct {
 	LastBreachDate time.Time         `json:"lastBreachDate"`
 	Passwords      []PasswordDetails `json:"passwords"`
@@ -69,6 +75,17 @@ type UserPasswordsCandidateFromUsingPartialHash struct {
 type UserPasswordsWithExposureDetails struct {
 	LastBreachDate time.Time                            `json:"lastBreachDate"`
 	Passwords      []PasswordDetailsWithExposureDetails `json:"passwords"`
+}
+
+type UserPasswordsByDomainResponse struct {
+	Count       int                          `json:"count"`
+	Users       []UsersWithPasswordsByDomain `json:"users"`
+	PagingToken string                       `json:"pagingToken"`
+}
+
+type UsersWithPasswordsByDomain struct {
+	Username  string            `json:"username"`
+	Passwords []PasswordDetails `json:"passwords"`
 }
 
 type ExposedUserForDomain struct {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,12 +13,20 @@ import (
 	"time"
 )
 
+// API endpoint paths
 const (
-	credentialsAPIPath = "/credentials"
-	passwordsAPIPath   = "/passwords"
-	exposuresAPIPath   = "/exposures"
-	accountsAPIPath    = "/accounts"
-	alertsServicePath  = "/alert-subscriptions"
+	credentialsAPIPath                       = "/credentials"
+	cleartextCredentialsAPIPath              = "/cleartext-credentials"
+	cleartextCredentialsByPartialHashAPIPath = "/cleartext-credentials-by-partial-hash"
+	cleartextCredentialsByDomain             = "/cleartext-credentials-by-domain"
+	passwordsAPIPath                         = "/passwords"
+	exposuresForUsernamesAPIPath             = "/exposures-for-usernames"
+	exposuresForDomainAPIPath                = "/exposures-for-domain"
+	exposuresForDomainUsersAPIPath           = "/exposures-for-domain-users"
+	exposureDetailsAPIPath                   = "/exposure-details"
+	accountsAPIPath                          = "/accounts"
+	breachMonitoringForUsersAPIPath          = "/breach-monitoring-for-users"
+	breachMonitoringForDomainsAPIPath        = "/breach-monitoring-for-domains"
 )
 
 type Client struct {
@@ -68,6 +76,96 @@ func (e *Client) CheckPassword(password string) (bool, error) {
 	return e.CheckPasswordWithExposure(password, &revealedInExposure, &relativeExposureFrequency)
 }
 
+// CheckPasswordHash checks whether the password provided in the passwordHash parameter is in the Enzoic database of known,
+// compromised passwords.  If so it will return true.  The passwordHash can be a hash in any of the formats supported
+// by the Enzoic Passwords API (PasswordType.MD5, PasswordType.SHA1, PasswordType.SHA256 or PasswordType.NTLM).
+// The passwordType parameter should be set to the type of hash being provided using the PasswordType enum.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/passwords-api
+func (e *Client) CheckPasswordHash(passwordHash string, hashType PasswordType) (bool, error) {
+	var requestObject interface{}
+
+	switch hashType {
+	case MD5:
+		requestObject = struct {
+			PartialMD5 string `json:"partialMD5"`
+		}{
+			PartialMD5: strings.ToLower(passwordHash[:10]),
+		}
+	case SHA1:
+		requestObject = struct {
+			PartialSHA1 string `json:"partialSHA1"`
+		}{
+			PartialSHA1: strings.ToLower(passwordHash[:10]),
+		}
+	case SHA256:
+		requestObject = struct {
+			PartialSHA256 string `json:"partialSHA256"`
+		}{
+			PartialSHA256: strings.ToLower(passwordHash[:10]),
+		}
+	case NTLM:
+		requestObject = struct {
+			PartialNTLM string `json:"partialNTLM"`
+		}{
+			PartialNTLM: strings.ToLower(passwordHash[:10]),
+		}
+	default:
+		return false, errors.New("Invalid hash type.  Must be MD5, SHA1, SHA256 or NTLM")
+	}
+
+	requestBody, err := json.Marshal(requestObject)
+	if err != nil {
+		return false, err
+	}
+
+	resp, body, err := e.makeRestCall("POST", passwordsAPIPath, "", requestBody)
+	if err != nil {
+		return false, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	} else if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("Failed to check password: %s", resp.Status)
+	}
+
+	var responseObj map[string]interface{}
+	err = json.Unmarshal(body, &responseObj)
+	if err != nil {
+		return false, err
+	}
+
+	candidates, ok := responseObj["candidates"].([]interface{})
+	if !ok {
+		return false, errors.New("Invalid response format")
+	}
+
+	for _, candidate := range candidates {
+		candidateObj := candidate.(map[string]interface{})
+
+		switch hashType {
+		case MD5:
+			if candidateObj["md5"].(string) == passwordHash {
+				return true, nil
+			}
+		case SHA1:
+			if candidateObj["sha1"].(string) == passwordHash {
+				return true, nil
+			}
+		case SHA256:
+			if candidateObj["sha256"].(string) == passwordHash {
+				return true, nil
+			}
+		case NTLM:
+			if candidateObj["ntlm"].(string) == passwordHash {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
 // CheckPasswordWithExposure checks whether the password provided in the password parameter is in the Enzoic database of known,
 // compromised passwords.  If so it will return true.  Also updates the revealedInExposures and exposureCount parameters
 // with the results of the check, indicating if this is a password which is just weak (revealedInExposure false) or
@@ -84,21 +182,15 @@ func (e *Client) CheckPasswordWithExposure(password string, revealedInExposure *
 	params.Set("partial_sha1", sha1[:10])
 	params.Set("partial_sha256", sha256[:10])
 
-	resp, err := e.makeRestCall("GET", passwordsAPIPath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", passwordsAPIPath, params.Encode(), nil)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("Failed to check password: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, err
 	}
 
 	var responseObj map[string]interface{}
@@ -126,6 +218,107 @@ func (e *Client) CheckPasswordWithExposure(password string, revealedInExposure *
 	}
 
 	return false, nil
+}
+
+// RetrieveCandidatesForPartialPasswordHash is a thin wrapper around the Passwords API call.
+// This call is generally redundant with CheckPasswordHash in that it merely returns the hash candidates for the call rather than
+// just checking for a match directly in the candidate list and returning a boolean.  In general, there is no reason to
+// use this call unless you have a very specialized use case, as CheckPasswordHash can be used instead to simply
+// check whether a given password hash is compromised.
+//
+// The partialPasswordHash parameter can be the first 7 characters of a hash in any of the formats supported
+// by the Enzoic Passwords API (PasswordType.MD5, PasswordType.SHA1, PasswordType.SHA256 or PasswordType.NTLM).
+// The passwordType parameter should be set to the type of partial hash being provided using the PasswordType enum.
+//
+// The function will return a list of candidate hashes that match the partial hash provided.
+//
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/passwords-api
+func (e *Client) RetrieveCandidatesForPartialPasswordHash(partialPasswordHash string, hashType PasswordType) ([]string, error) {
+	var requestObject interface{}
+
+	if hashType != MD5 && hashType != SHA1 && hashType != SHA256 && hashType != NTLM {
+		return nil, errors.New("Invalid hash type.  Must be MD5, SHA1, SHA256 or NTLM")
+	}
+
+	if len(partialPasswordHash) < 7 {
+		return nil, errors.New("Partial hash must be at least 7 characters")
+	}
+
+	switch hashType {
+	case MD5:
+		requestObject = struct {
+			PartialMD5 string `json:"partialMD5"`
+		}{
+			PartialMD5: strings.ToLower(partialPasswordHash),
+		}
+	case SHA1:
+		requestObject = struct {
+			PartialSHA1 string `json:"partialSHA1"`
+		}{
+			PartialSHA1: strings.ToLower(partialPasswordHash),
+		}
+	case SHA256:
+		requestObject = struct {
+			PartialSHA256 string `json:"partialSHA256"`
+		}{
+			PartialSHA256: strings.ToLower(partialPasswordHash),
+		}
+	case NTLM:
+		requestObject = struct {
+			PartialNTLM string `json:"partialNTLM"`
+		}{
+			PartialNTLM: strings.ToLower(partialPasswordHash),
+		}
+	default:
+		return nil, errors.New("Invalid hash type.  Must be MD5, SHA1, SHA256 or NTLM")
+	}
+
+	requestBody, err := json.Marshal(requestObject)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, body, err := e.makeRestCall("POST", passwordsAPIPath, "", requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return make([]string, 0), nil
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to check password: %s", resp.Status)
+	}
+
+	var responseObj map[string]interface{}
+	err = json.Unmarshal(body, &responseObj)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates, ok := responseObj["candidates"].([]interface{})
+	if !ok {
+		return nil, errors.New("Invalid response format")
+	}
+
+	idx := 0
+	results := make([]string, len(candidates))
+	for _, candidate := range candidates {
+		candidateObj := candidate.(map[string]interface{})
+
+		switch hashType {
+		case MD5:
+			results[idx] = candidateObj["md5"].(string)
+		case SHA1:
+			results[idx] = candidateObj["sha1"].(string)
+		case SHA256:
+			results[idx] = candidateObj["sha256"].(string)
+		case NTLM:
+			results[idx] = candidateObj["ntlm"].(string)
+		}
+		idx++
+	}
+
+	return results, nil
 }
 
 // CheckCredentials checks whether the username/password provided in the parameters are in the Enzoic database of
@@ -161,21 +354,15 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 		params.Set("includeHashes", "1")
 	}
 
-	resp, err := e.makeRestCall("GET", accountsAPIPath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", accountsAPIPath, params.Encode(), nil)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("Failed to check credentials: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, err
 	}
 
 	var accountsResponse AccountsResponse
@@ -238,18 +425,12 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 		}
 
 		if queryString.Len() > 0 {
-			credsResp, err := e.makeRestCall("GET", credentialsAPIPath, queryString.String(), nil)
+			credsResp, credsBody, err := e.makeRestCall("GET", credentialsAPIPath, queryString.String(), nil)
 			if err != nil {
 				return false, err
 			}
-			defer credsResp.Body.Close()
 
 			if credsResp.StatusCode != http.StatusNotFound {
-				credsBody, err := ioutil.ReadAll(credsResp.Body)
-				if err != nil {
-					return false, err
-				}
-
 				var credsResponse map[string]interface{}
 				err = json.Unmarshal(credsBody, &credsResponse)
 				if err != nil {
@@ -280,21 +461,15 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 func (e *Client) GetExposuresForUser(username string) ([]string, error) {
 	usernameHash, _ := calcSHA256(strings.ToLower(username))
 
-	resp, err := e.makeRestCall("GET", exposuresAPIPath, "username="+usernameHash, nil)
+	resp, body, err := e.makeRestCall("GET", exposuresForUsernamesAPIPath, "username="+usernameHash, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return []string{}, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposures: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var exposuresResponse ExposuresResponse
@@ -320,21 +495,15 @@ func (e *Client) GetExposedUsersForDomain(domain string, pageSize int, pagingTok
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", exposuresAPIPath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", exposuresForDomainUsersAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposures: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var exposuresResponse ExposedUsersForDomain
@@ -361,21 +530,15 @@ func (e *Client) GetExposuresForDomain(domain string, pageSize int, pagingToken 
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", exposuresAPIPath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", exposuresForDomainAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return &ExposuresForDomain{Count: 0, Exposures: []string{}, PagingToken: ""}, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposures: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var exposuresResponse ExposuresForDomain
@@ -403,21 +566,15 @@ func (e *Client) GetExposuresForDomainIncludeDetails(domain string, pageSize int
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", exposuresAPIPath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", exposuresForDomainAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return &ExposuresForDomainIncludeDetails{Count: 0, Exposures: []ExposureDetails{}, PagingToken: ""}, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposures: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var exposuresResponse ExposuresForDomainIncludeDetails
@@ -432,21 +589,15 @@ func (e *Client) GetExposuresForDomainIncludeDetails(domain string, pageSize int
 // GetExposureDetails returns the detailed information for a credentials Exposure.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/retrieve-details-for-an-exposure
 func (e *Client) GetExposureDetails(exposureID string) (*ExposureDetails, error) {
-	resp, err := e.makeRestCall("GET", exposuresAPIPath, "?id="+exposureID, nil)
+	resp, body, err := e.makeRestCall("GET", exposureDetailsAPIPath, "?id="+exposureID, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposure details: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var exposureDetails ExposureDetails
@@ -463,28 +614,18 @@ func (e *Client) GetExposureDetails(exposureID string) (*ExposureDetails, error)
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
 func (e *Client) GetUserPasswords(username string) (*UserPasswords, error) {
 	usernameHash, _ := calcSHA256(username)
-	resp, err := e.makeRestCall("GET", accountsAPIPath, "username="+usernameHash+"&includePasswords=1", nil)
+	resp, body, err := e.makeRestCall("GET", cleartextCredentialsAPIPath, "username="+usernameHash+"&includePasswords=1", nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// User not found in the database
 		return nil, nil
 	} else if resp.StatusCode == http.StatusForbidden {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
 		return nil, fmt.Errorf("Call was rejected for the following reason: %s", body)
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get user passwords: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var result UserPasswords
@@ -506,28 +647,18 @@ func (e *Client) GetUserPasswords(username string) (*UserPasswords, error) {
 func (e *Client) GetUserPasswordsUsingPartialHash(username string) (*UserPasswords, error) {
 	usernameHash, _ := calcSHA256(username)
 	partialUsernameHash := usernameHash[0:8]
-	resp, err := e.makeRestCall("GET", accountsAPIPath, "partialUsernameHash="+partialUsernameHash+"&includePasswords=1", nil)
+	resp, body, err := e.makeRestCall("GET", cleartextCredentialsByPartialHashAPIPath, "partialUsernameHash="+partialUsernameHash+"&includePasswords=1", nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// User not found in the database
 		return nil, nil
 	} else if resp.StatusCode == http.StatusForbidden {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
 		return nil, fmt.Errorf("Call was rejected for the following reason: %s", body)
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get user passwords: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var candidates UserPasswordsCandidatesFromUsingPartialHash
@@ -552,31 +683,61 @@ func (e *Client) GetUserPasswordsUsingPartialHash(username string) (*UserPasswor
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api
 func (e *Client) GetUserPasswordsWithExposureDetails(username string) (*UserPasswordsWithExposureDetails, error) {
 	usernameHash, _ := calcSHA256(username)
-	resp, err := e.makeRestCall("GET", accountsAPIPath, "username="+usernameHash+"&includePasswords=1&includeExposureDetails=1", nil)
+	resp, body, err := e.makeRestCall("GET", cleartextCredentialsAPIPath, "username="+usernameHash+"&includePasswords=1&includeExposureDetails=1", nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// User not found in the database
 		return nil, nil
 	} else if resp.StatusCode == http.StatusForbidden {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
 		return nil, fmt.Errorf("Call was rejected for the following reason: %s", body)
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get user passwords: %s", resp.Status)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	var result UserPasswordsWithExposureDetails
+	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return nil, err
 	}
 
-	var result UserPasswordsWithExposureDetails
+	return &result, nil
+}
+
+// GetUserPasswordsByDomain returns a paginated list of credentials in the Enzoic database for all users under a given
+// email domain.  This variant of the call takes a domain (e.g. enzoic.com) and returns a list of emails and recovered
+// passwords for any email address we've found credentials for in that domain.  This call must be enabled
+// for your account or you will receive a 403 rejection when attempting to call it.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/credentials-api/cleartext-credentials-api#cleartext-credentials-by-domain
+func (e *Client) GetUserPasswordsByDomain(domain string, pageSize int, pagingToken string) (*UserPasswordsByDomainResponse, error) {
+	params := url.Values{}
+	if domain != "" {
+		params.Set("domain", domain)
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.Itoa(pageSize))
+	}
+	if pagingToken != "" {
+		params.Set("pagingToken", pagingToken)
+	}
+
+	resp, body, err := e.makeRestCall("GET", cleartextCredentialsByDomain, params.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		// User not found in the database
+		return nil, nil
+	} else if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("Call was rejected for the following reason: %s", body)
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get user passwords: %s", resp.Status)
+	}
+
+	var result UserPasswordsByDomainResponse
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return nil, err
@@ -615,19 +776,13 @@ func (e *Client) AddUserAlertSubscriptions(usernames []string, customData string
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("POST", alertsServicePath, "", requestBody)
+	resp, body, err := e.makeRestCall("POST", breachMonitoringForUsersAPIPath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("Failed to add alert subscriptions: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var result AddSubscriptionsResponse
@@ -655,19 +810,13 @@ func (e *Client) DeleteUserAlertSubscriptions(usernames []string) (*DeleteSubscr
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("DELETE", alertsServicePath, "", requestBody)
+	resp, body, err := e.makeRestCall("DELETE", breachMonitoringForUsersAPIPath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to delete alert subscriptions: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var result DeleteSubscriptionsResponse
@@ -694,19 +843,13 @@ func (e *Client) DeleteUserAlertSubscriptionsByCustomData(customData string) (*D
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("DELETE", alertsServicePath, "", requestBody)
+	resp, body, err := e.makeRestCall("DELETE", breachMonitoringForUsersAPIPath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to delete alert subscriptions: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var result DeleteSubscriptionsResponse
@@ -743,21 +886,15 @@ func (e *Client) GetUserAlertSubscriptionsByCustomData(customData string, pageSi
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", alertsServicePath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", breachMonitoringForUsersAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return &GetSubscriptionsResponse{Count: 0, UsernameHashes: []string{}, PagingToken: ""}, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposures: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var subscriptionsResponse GetSubscriptionsResponse
@@ -773,11 +910,10 @@ func (e *Client) GetUserAlertSubscriptionsByCustomData(customData string, pageSi
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-user#retrieve-current-breach-alert-subscriptions
 func (e *Client) IsUserSubscribedForAlerts(username string) (bool, error) {
 	usernameHash, _ := calcSHA256(username)
-	resp, err := e.makeRestCall("GET", alertsServicePath, "usernameHash="+usernameHash, nil)
+	resp, _, err := e.makeRestCall("GET", breachMonitoringForUsersAPIPath, "usernameHash="+usernameHash, nil)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return false, nil
@@ -803,19 +939,13 @@ func (e *Client) AddDomainAlertSubscriptions(domains []string) (*AddSubscription
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("POST", alertsServicePath, "", requestBody)
+	resp, body, err := e.makeRestCall("POST", breachMonitoringForDomainsAPIPath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("Failed to add alert subscriptions: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var result AddSubscriptionsResponse
@@ -841,19 +971,13 @@ func (e *Client) DeleteDomainAlertSubscriptions(domains []string) (*DeleteSubscr
 		return nil, err
 	}
 
-	resp, err := e.makeRestCall("DELETE", alertsServicePath, "", requestBody)
+	resp, body, err := e.makeRestCall("DELETE", breachMonitoringForDomainsAPIPath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to delete alert subscriptions: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var result DeleteSubscriptionsResponse
@@ -879,21 +1003,15 @@ func (e *Client) GetDomainAlertSubscriptions(pageSize int, pagingToken string) (
 		params.Set("pagingToken", pagingToken)
 	}
 
-	resp, err := e.makeRestCall("GET", alertsServicePath, params.Encode(), nil)
+	resp, body, err := e.makeRestCall("GET", breachMonitoringForDomainsAPIPath, params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return &GetDomainSubscriptionsResponse{Count: 0, Domains: []string{}, PagingToken: ""}, nil
 	} else if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Failed to get exposures: %s", resp.Status)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 
 	var subscriptionsResponse GetDomainSubscriptionsResponse
@@ -908,11 +1026,10 @@ func (e *Client) GetDomainAlertSubscriptions(pageSize int, pagingToken string) (
 // IsDomainSubscribedForAlerts takes a domain and returns true if the domain is subscribed for alerts, false otherwise.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#retrieve-current-breach-alert-subscriptions
 func (e *Client) IsDomainSubscribedForAlerts(domain string) (bool, error) {
-	resp, err := e.makeRestCall("GET", alertsServicePath, "domain="+domain, nil)
+	resp, _, err := e.makeRestCall("GET", breachMonitoringForDomainsAPIPath, "domain="+domain, nil)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return false, nil
@@ -960,7 +1077,7 @@ func hashUsernameList(usernames []string) []string {
 	return usernameHashes
 }
 
-func (e *Client) makeRestCall(method, endpoint string, params string, body []byte) (*http.Response, error) {
+func (e *Client) makeRestCall(method, endpoint string, params string, body []byte) (*http.Response, []byte, error) {
 	apiUrl := ""
 	if params != "" && strings.Index(params, "?") == 0 {
 		apiUrl = fmt.Sprintf("%s%s%s", e.baseURL, endpoint, params)
@@ -970,7 +1087,7 @@ func (e *Client) makeRestCall(method, endpoint string, params string, body []byt
 
 	req, err := http.NewRequest(method, apiUrl, strings.NewReader(string(body)))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	req.Header.Set("Authorization", e.authString)
@@ -978,8 +1095,21 @@ func (e *Client) makeRestCall(method, endpoint string, params string, body []byt
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return resp, nil
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
+
+	responseBody, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, responseBody, nil
 }
