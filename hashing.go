@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-func calcPasswordHash(passwordType PasswordType, password string, salt string) (string, error) {
+func CalcPasswordHash(passwordType PasswordType, password string, salt string) (string, error) {
 	switch passwordType {
 	case BCrypt:
 		return calcBCrypt(password, salt)

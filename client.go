@@ -1050,7 +1050,7 @@ func containsPasswordType(types []PasswordType, t PasswordType) bool {
 }
 
 func calcCredentialHash(username, password, salt string, spec PasswordHashSpecification) *string {
-	passwordHash, _ := calcPasswordHash(spec.HashType, password, spec.Salt)
+	passwordHash, _ := CalcPasswordHash(spec.HashType, password, spec.Salt)
 	if passwordHash != "" {
 		argon2Hash, _ := calcArgon2(fmt.Sprintf("%s$%s", username, passwordHash), salt)
 		hash := argon2Hash[strings.LastIndex(argon2Hash, "$")+1:]

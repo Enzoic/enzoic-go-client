@@ -26,7 +26,7 @@ func TestBcrypt(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	//Assert.AreEqual(Hashing.calcPasswordHash(PasswordType.BCrypt, "12345", "$2a$12$2bULeXwv2H34SXkT1giCZe"), "$2a$12$2bULeXwv2H34SXkT1giCZeJW7A6Q0Yfas09wOCxoIC44fDTYq44Mm");
+	//Assert.AreEqual(Hashing.CalcPasswordHash(PasswordType.BCrypt, "12345", "$2a$12$2bULeXwv2H34SXkT1giCZe"), "$2a$12$2bULeXwv2H34SXkT1giCZeJW7A6Q0Yfas09wOCxoIC44fDTYq44Mm");
 }
 
 func TestCalcPasswordHash(t *testing.T) {
@@ -74,7 +74,7 @@ func TestCalcPasswordHash(t *testing.T) {
 }
 
 func calcPasswordHashForTest(passwordType PasswordType, password string, salt string) string {
-	result, err := calcPasswordHash(passwordType, password, salt)
+	result, err := CalcPasswordHash(passwordType, password, salt)
 	if err != nil {
 		log.Fatal(err)
 	}
