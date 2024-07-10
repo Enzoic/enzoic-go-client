@@ -309,9 +309,9 @@ func TestEnzoic_GetUserPasswordsByDomain(t *testing.T) {
 	userPasswords, _ := enzoicClient.GetUserPasswordsByDomain("enzoic.com", 0, "")
 	//expectedDate := time.Date(2010, time.January, 1, 7, 0, 0, 0, time.UTC)
 	//expectedAddDate := time.Date(2017, time.April, 8, 2, 7, 44, 0, time.UTC)
-	assert.Equal(t, 94, userPasswords.Count)
+	assert.Equal(t, 99, userPasswords.Count)
 	assert.Equal(t, "", userPasswords.PagingToken)
-	assert.Equal(t, 94, len(userPasswords.Users))
+	assert.Equal(t, 99, len(userPasswords.Users))
 	assert.Equal(t, UsersWithPasswordsByDomain{
 		Username: "eicar_8@enzoic.com",
 		Passwords: []PasswordDetails{
@@ -419,14 +419,14 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 			{
 				ID:              "57ffcf3c1395c80b30dd4429",
 				Title:           "linkedin.com",
-				Entries:         117046470,
+				Entries:         165286357,
 				Date:            &expectedDate2,
 				Category:        "Social Media",
 				PasswordType:    "SHA1",
 				ExposedData:     []string{"Emails", "Passwords"},
 				DateAdded:       &expectedDateAdded2,
 				SourceURLs:      []string{},
-				DomainsAffected: 10072191,
+				DomainsAffected: 10073082,
 			},
 		},
 		PagingToken: "5837c338ec4d280e25c6310d",
@@ -443,14 +443,14 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 			{
 				ID:              "5805029914f33808dc802ff7",
 				Title:           "exploit.in database compilation",
-				Entries:         698291348,
+				Entries:         649187883,
 				Date:            &expectedDate1,
 				Category:        "Unspecified",
 				PasswordType:    "Cleartext",
 				ExposedData:     []string{"Emails", "Passwords"},
 				DateAdded:       &expectedDateAdded1,
 				SourceURLs:      []string{},
-				DomainsAffected: 9436897,
+				DomainsAffected: 9441205,
 			},
 			{
 				ID:       "598e5b844eb6d82ea07c5783",
@@ -480,6 +480,22 @@ func TestEnzoic_AddUserAlertSubscriptions(t *testing.T) {
 	enzoicClient.DeleteUserAlertSubscriptions(testUsers)
 
 	response, _ := enzoicClient.AddUserAlertSubscriptions(testUsers, "")
+	assert.Equal(t, 2, response.Added)
+	assert.Equal(t, 0, response.AlreadyExisted)
+}
+
+func TestEnzoic_AddUserAlertSubscriptionsWithSpecifiedWebhook(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testUsers := []string{
+		"eicar_1@enzoic.com",
+		"eicar_0@enzoic.com",
+	}
+
+	// delete them just in case they were left behind by previous test
+	enzoicClient.DeleteUserAlertSubscriptions(testUsers)
+
+	response, _ := enzoicClient.AddUserAlertSubscriptionsWithSpecifiedWebhook(testUsers, "", "668db147aa97bb620c171388")
 	assert.Equal(t, 2, response.Added)
 	assert.Equal(t, 0, response.AlreadyExisted)
 }
@@ -567,6 +583,49 @@ func TestEnzoic_GetUserAlertSubscriptionsByCustomData(t *testing.T) {
 	}, *response)
 }
 
+func TestEnzoic_GetUserAlertSubscriptionsByCustomDataWithExtendedInfo(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testUsers := []string{
+		"eicar_1@enzoic.com",
+		"eicar_0@enzoic.com",
+	}
+
+	// add test subscriptions
+	enzoicClient.DeleteUserAlertSubscriptions(testUsers)
+	response2, _ := enzoicClient.AddUserAlertSubscriptions(testUsers, "unit-test-go")
+	assert.Equal(t, 2, response2.Added)
+
+	response, err := enzoicClient.GetUserAlertSubscriptionsByCustomDataWithExtendedInfo("unit-test-go", 1, "")
+	assert.Nil(t, err)
+	assert.Equal(t, GetSubscriptionsWithExtendedInfoResponse{
+		UsernameHashes: []UsernameHashWithExtendedInfo{
+			{
+				UsernameHash: "1697bf210b5725683faa7467099bdd4df07091d96dc2d114cf379df0290afcb1",
+				CustomData:   "unit-test-go",
+				WebhookID:    "668d9784b79968eab0657905",
+				WebhookURL:   "https://api.passwordping.com/webhook",
+			},
+		},
+		Count:       2,
+		PagingToken: response.PagingToken,
+	}, *response)
+
+	response, _ = enzoicClient.GetUserAlertSubscriptionsByCustomDataWithExtendedInfo("unit-test-go", 1, response.PagingToken)
+	assert.Equal(t, GetSubscriptionsWithExtendedInfoResponse{
+		UsernameHashes: []UsernameHashWithExtendedInfo{
+			{
+				UsernameHash: "705bce557110384a4ce76aa9c33a12af14ac1eee3978ac3076f866aa0d84f07a",
+				CustomData:   "unit-test-go",
+				WebhookID:    "668d9784b79968eab0657905",
+				WebhookURL:   "https://api.passwordping.com/webhook",
+			},
+		},
+		Count:       2,
+		PagingToken: "",
+	}, *response)
+}
+
 func TestEnzoic_AddDomainAlertSubscriptions(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -579,6 +638,22 @@ func TestEnzoic_AddDomainAlertSubscriptions(t *testing.T) {
 	enzoicClient.DeleteDomainAlertSubscriptions(testDomains)
 
 	response, _ := enzoicClient.AddDomainAlertSubscriptions(testDomains)
+	assert.Equal(t, 2, response.Added)
+	assert.Equal(t, 0, response.AlreadyExisted)
+}
+
+func TestEnzoic_AddDomainAlertSubscriptionsWithSpecifiedWebhook(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testDomains := []string{
+		"testadddomain1.com",
+		"testadddomain2.com",
+	}
+
+	// delete them just in case they were left behind by previous test
+	enzoicClient.DeleteDomainAlertSubscriptions(testDomains)
+
+	response, _ := enzoicClient.AddDomainAlertSubscriptionsWithSpecifiedWebhook(testDomains, "668db147aa97bb620c171388")
 	assert.Equal(t, 2, response.Added)
 	assert.Equal(t, 0, response.AlreadyExisted)
 }
@@ -648,6 +723,51 @@ func TestEnzoic_GetDomainAlertSubscriptions(t *testing.T) {
 	response, _ = enzoicClient.GetDomainAlertSubscriptions(1, response.PagingToken)
 	assert.Equal(t, GetDomainSubscriptionsResponse{
 		Domains:     []string{"testadddomain2.com"},
+		Count:       2,
+		PagingToken: "",
+	}, *response)
+}
+
+func TestEnzoic_GetDomainAlertSubscriptionsWithExtendedInfo(t *testing.T) {
+	enzoicClient, _ := NewClient(os.Getenv("PP_API_KEY"), os.Getenv("PP_API_SECRET"))
+
+	testDomains := []string{
+		"testadddomain1.com",
+		"testadddomain2.com",
+	}
+
+	// clean out existing subscriptions
+	getResponse, _ := enzoicClient.GetDomainAlertSubscriptions(100, "")
+	enzoicClient.DeleteDomainAlertSubscriptions(getResponse.Domains)
+
+	// add test subscriptions
+	response2, err := enzoicClient.AddDomainAlertSubscriptions(testDomains)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, response2.Added)
+
+	response, err := enzoicClient.GetDomainAlertSubscriptionsWithExtendedInfo(1, "")
+	assert.Nil(t, err)
+	assert.Equal(t, GetDomainSubscriptionsWithExtendedInfoResponse{
+		Domains: []DomainWithExtendedInfo{
+			{
+				Domain:     "testadddomain1.com",
+				WebhookID:  "668d9784b79968eab0657905",
+				WebhookURL: "https://api.passwordping.com/webhook",
+			},
+		},
+		Count:       2,
+		PagingToken: response.PagingToken,
+	}, *response)
+
+	response, _ = enzoicClient.GetDomainAlertSubscriptionsWithExtendedInfo(1, response.PagingToken)
+	assert.Equal(t, GetDomainSubscriptionsWithExtendedInfoResponse{
+		Domains: []DomainWithExtendedInfo{
+			{
+				Domain:     "testadddomain2.com",
+				WebhookID:  "668d9784b79968eab0657905",
+				WebhookURL: "https://api.passwordping.com/webhook",
+			},
+		},
 		Count:       2,
 		PagingToken: "",
 	}, *response)

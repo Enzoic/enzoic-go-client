@@ -132,3 +132,28 @@ type GetDomainSubscriptionsResponse struct {
 	Domains     []string `json:"domains"`
 	PagingToken string   `json:"pagingToken"`
 }
+
+type UsernameHashWithExtendedInfo struct {
+	UsernameHash string `json:"usernameHash"`
+	CustomData   string `json:"customData"`
+	WebhookID    string `json:"webhookID"`
+	WebhookURL   string `json:"webhookURL"`
+}
+
+type GetSubscriptionsWithExtendedInfoResponse struct {
+	Count          int                            `json:"count"`
+	UsernameHashes []UsernameHashWithExtendedInfo `json:"usernameHashes"`
+	PagingToken    string                         `json:"pagingToken"`
+}
+
+type DomainWithExtendedInfo struct {
+	Domain     string `json:"domain"`
+	WebhookID  string `json:"webhookID"`
+	WebhookURL string `json:"webhookURL"`
+}
+
+type GetDomainSubscriptionsWithExtendedInfoResponse struct {
+	Count       int                      `json:"count"`
+	Domains     []DomainWithExtendedInfo `json:"domains"`
+	PagingToken string                   `json:"pagingToken"`
+}
