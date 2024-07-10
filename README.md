@@ -176,7 +176,12 @@ if err != nil {panic(err)}
 
 fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
 fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
-    
+
+// by default, alerts will go to your default webhook on your account.  Specify an alternate Webhook to send the alerts to
+// by providing its ID
+addResponse, err := enzoicClient.AddUserAlertSubscriptionsWithSpecifiedWebhook(usernames, "exampleCustomData", "668db147aa97bb620c171388")
+if err != nil {panic(err)}
+ 
 // check whether a user is already subscribed
 subscribed, err := enzoicClient.IsUserSubscribedForAlerts(usernames[0])
 if err != nil {panic(err)}
@@ -189,12 +194,14 @@ if (subscribed) {
 
 // get all users subscribed for alerts on this account 
 // returns paged results per https://www.enzoic.com/docs-exposure-alerts-service-api/#get-exposure-subscriptions
-subscriptionsResponse, err := enzoicClient.GetUserAlertSubscriptions(4 /* page size */, "" /* paging token - empty on first call */)
+subscriptionsResponse, err := enzoicClient.GetUserAlertSubscriptionsWithExtendedInfo(4 /* page size */, "" /* paging token - empty on first call */)
 if err != nil {panic(err)}
 
 // print first page of results
 for i := 0; i < len(subscriptionsResponse.UsernameHashes); i += 1 {
-   fmt.Println("Username Hash: " + subscriptionsResponse.UsernameHashes[i])
+   fmt.Println("Username Hash: " + subscriptionsResponse.UsernameHashes[i].UsernameHash)
+   fmt.Println("Webhook ID: " + subscriptionsResponse.UsernameHashes[i].WebhookID)
+   fmt.Println("Webhook URL: " + subscriptionsResponse.UsernameHashes[i].WebhookURL)
 }
 
 // if PagingToken present, get next page of results
@@ -226,6 +233,14 @@ if err != nil {panic(err)}
 fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
 fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
 
+// by default, alerts will go to your default webhook on your account.  Specify an alternate Webhook to send the alerts to
+// by providing its ID
+addResponse, err = enzoicClient.AddDomainAlertSubscriptionsWithSpecifiedWebhook(domains, "668db147aa97bb620c171388")
+if err != nil {panic(err)}
+
+fmt.Println("New subscriptions added: " + strconv.Itoa(addResponse.Added))
+fmt.Println("Subscriptions already existing: " + strconv.Itoa(addResponse.AlreadyExisted))
+
 // check whether a domain is already subscribed
 subscribed, err = enzoicClient.IsDomainSubscribedForAlerts(domains[0])
 if err != nil {panic(err)}
@@ -238,12 +253,14 @@ if subscribed {
 
 // get all domains subscribed for alerts on this account 
 // returns pages results per https://www.enzoic.com/docs-exposure-alerts-service-api/#get-exposure-subscriptions-domains
-domainSubsResponse, err = enzoicClient.GetDomainAlertSubscriptions(4 /* page size */, "" /* paging token - empty on first call */)
+domainSubsResponse, err = enzoicClient.GetDomainAlertSubscriptionsWithExtendedInfo(4 /* page size */, "" /* paging token - empty on first call */)
 if err != nil {panic(err)}
 
 // print first page of results
 for i := 0; i < len(domainSubsResponse.Domains); i += 1 {
-   fmt.Println("Domain: " + domainSubsResponse.Domains[i])
+   fmt.Println("Domain: " + domainSubsResponse.Domains[i].Domain)
+   fmt.Println("Webhook ID: " + domainSubsResponse.Domains[i].WebhookID) 
+   fmt.Println("Webhook URL: " + domainSubsResponse.Domains[i].WebhookURL)
 }
 
 // if pagingToken present, get next page of results
