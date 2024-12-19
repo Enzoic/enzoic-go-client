@@ -341,7 +341,7 @@ func TestEnzoic_GetExposedUsersForDomain(t *testing.T) {
 		Users: []ExposedUserForDomain{
 			{
 				Username:  "sample@email.tst",
-				Exposures: []string{"57dc11964d6db21300991b78", "5805029914f33808dc802ff7", "57ffcf3c1395c80b30dd4429", "598e5b844eb6d82ea07c5783", "59bbf691e5017d2dc8a96eab", "59bc2016e5017d2dc8bdc36a", "59bebae9e5017d2dc85fc2ab", "59f36f8c4eb6d85ba0bee09c", "5bcf9af3e5017d07201e2149", "5c4f818bd3cef70e983dda1e"},
+				Exposures: []string{"57dc11964d6db21300991b78", "57ffcf3c1395c80b30dd4429", "5805029914f33808dc802ff7", "598e5b844eb6d82ea07c5783", "59bbf691e5017d2dc8a96eab", "59bc2016e5017d2dc8bdc36a", "59bebae9e5017d2dc85fc2ab", "59f36f8c4eb6d85ba0bee09c", "5bcf9af3e5017d07201e2149", "5c4f818bd3cef70e983dda1e"},
 			},
 			{
 				Username:  "xxxxxxxxxx@email.tst",
@@ -450,7 +450,7 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 				ExposedData:     []string{"Emails", "Passwords"},
 				DateAdded:       &expectedDateAdded1,
 				SourceURLs:      []string{},
-				DomainsAffected: 9441205,
+				DomainsAffected: 9441219,
 			},
 			{
 				ID:       "598e5b844eb6d82ea07c5783",

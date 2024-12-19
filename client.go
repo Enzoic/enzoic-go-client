@@ -206,9 +206,19 @@ func (e *Client) CheckPasswordWithExposure(password string, revealedInExposure *
 
 	for _, candidate := range candidates {
 		candidateObj := candidate.(map[string]interface{})
-		candidateMD5 := candidateObj["md5"].(string)
-		candidateSHA1 := candidateObj["sha1"].(string)
-		candidateSHA256 := candidateObj["sha256"].(string)
+		candidateMD5 := ""
+		candidateSHA1 := ""
+		candidateSHA256 := ""
+
+		if candidateObj["md5"] != nil {
+			candidateMD5 = candidateObj["md5"].(string)
+		}
+		if candidateObj["sha1"] != nil {
+			candidateSHA1 = candidateObj["sha1"].(string)
+		}
+		if candidateObj["sha256"] != nil {
+			candidateSHA256 = candidateObj["sha256"].(string)
+		}
 
 		if candidateMD5 == md5 || candidateSHA1 == sha1 || candidateSHA256 == sha256 {
 			*revealedInExposure = candidateObj["revealedInExposure"].(bool)
