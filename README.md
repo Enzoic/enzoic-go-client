@@ -27,6 +27,13 @@ enzoicClient, err := enzoic.NewClient("API_KEY", "API_SECRET")
 if err != nil {panic(err)}
 ```
 
+If you need to override the default timeout value for API calls (30 seconds) or set proxy information, 
+you can access the HttpClient object used for API calls through the client object's HttpClient field:
+
+```go
+enzoicClient.HttpClient.Timeout = time.Second * 10
+```
+
 ## Passwords API Examples
 
 See

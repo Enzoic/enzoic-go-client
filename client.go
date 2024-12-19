@@ -34,7 +34,7 @@ type Client struct {
 	secret     string
 	authString string
 	baseURL    string
-	httpClient *http.Client
+	HttpClient *http.Client
 }
 
 // NewClient creates a new instance of the Enzoic Client, taking your API key and secret as parameters.
@@ -56,12 +56,14 @@ func NewClientWithCustomBaseURL(apiKey, secret, apiBaseURL string) (*Client, err
 	}
 
 	client := &http.Client{}
+	client.Timeout = 30 * time.Second // default 30 second timeout
+
 	enzoic := &Client{
 		apiKey:     apiKey,
 		secret:     secret,
 		authString: "basic " + base64.StdEncoding.EncodeToString([]byte(apiKey+":"+secret)),
 		baseURL:    apiBaseURL,
-		httpClient: client,
+		HttpClient: client,
 	}
 	return enzoic, nil
 }
@@ -1275,7 +1277,7 @@ func (e *Client) makeRestCall(method, endpoint string, params string, body []byt
 	req.Header.Set("Authorization", e.authString)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := e.httpClient.Do(req)
+	resp, err := e.HttpClient.Do(req)
 	if err != nil {
 		return nil, nil, err
 	}
