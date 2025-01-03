@@ -128,6 +128,23 @@ func TestEnzoic_GetExposuresForUser(t *testing.T) {
 	}, exposures)
 }
 
+func TestEnzoic_GetExposuresForUserWithinDateRange(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	exposures, _ := enzoicClient.GetExposuresForUserWithinDateRange("@@bogus-username@@",
+		time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2011, 1, 1, 0, 0, 0, 0, time.UTC))
+	assert.Equal(t, 0, len(exposures))
+
+	exposures, _ = enzoicClient.GetExposuresForUserWithinDateRange("eicar_type0@enzoic.com",
+		time.Date(2019, 10, 4, 0, 0, 0, 0, time.UTC),
+		time.Date(2019, 10, 5, 0, 0, 0, 0, time.UTC))
+	assert.Equal(t, 1, len(exposures))
+	assert.Equal(t, []string{
+		"5d97d14faa8feb16b0f9fd5f",
+	}, exposures)
+}
+
 func TestEnzoic_GetExposureDetails(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -361,6 +378,52 @@ func TestEnzoic_GetExposedUsersForDomain(t *testing.T) {
 	}, *exposedUsersForDomain)
 }
 
+func TestEnzoic_GetExposedUsersForDomainWithinDateRange(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	exposedUsersForDomain, _ := enzoicClient.GetExposedUsersForDomainWithinDateRange("@@bogus-domain@@",
+		time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2011, 1, 1, 0, 0, 0, 0, time.UTC),
+		0, "")
+	assert.Equal(t, ExposedUsersForDomain{
+		Count:       0,
+		Users:       []ExposedUserForDomain{},
+		PagingToken: "",
+	}, *exposedUsersForDomain)
+
+	exposedUsersForDomain, _ = enzoicClient.GetExposedUsersForDomainWithinDateRange("email.tst",
+		time.Date(2016, 10, 17, 0, 0, 0, 0, time.UTC),
+		time.Date(2016, 10, 18, 0, 0, 0, 0, time.UTC),
+		2, "")
+
+	assert.Equal(t, ExposedUsersForDomain{
+		Count: 12,
+		Users: []ExposedUserForDomain{
+			{
+				Username:  "sample@email.tst",
+				Exposures: []string{"5805029914f33808dc802ff7"},
+			},
+			{
+				Username:  "xxxxxxxxxx@email.tst",
+				Exposures: []string{"5805029914f33808dc802ff7"},
+			},
+		},
+		PagingToken: "58055cd814f3380a94324adc",
+	}, *exposedUsersForDomain)
+
+	exposedUsersForDomain, _ = enzoicClient.GetExposedUsersForDomainWithinDateRange("email.tst",
+		time.Date(2016, 10, 17, 0, 0, 0, 0, time.UTC),
+		time.Date(2016, 10, 18, 0, 0, 0, 0, time.UTC),
+		2, "58055cd814f3380a94324adc")
+	assert.Equal(t, ExposedUsersForDomain{
+		Count: 12,
+		Users: []ExposedUserForDomain{
+			{Username: "cbeiqvf@email.tst", Exposures: []string{"5805029914f33808dc802ff7"}},
+			{Username: "yjybey@email.tst", Exposures: []string{"5805029914f33808dc802ff7"}}},
+		PagingToken: "580bf3cafdb8780bb001abcb",
+	}, *exposedUsersForDomain)
+}
+
 func TestEnzoic_GetExposuresForDomain(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -383,6 +446,30 @@ func TestEnzoic_GetExposuresForDomain(t *testing.T) {
 		Count:       10,
 		Exposures:   []string{"5805029914f33808dc802ff7", "598e5b844eb6d82ea07c5783"},
 		PagingToken: "598e5b8b4eb6d82ea07c5b39",
+	}, *exposuresForDomain)
+}
+
+func TestEnzoic_GetExposuresForDomainWithinDateRange(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	exposuresForDomain, _ := enzoicClient.GetExposuresForDomainWithinDateRange("@@bogus-domain@@",
+		time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2011, 1, 1, 0, 0, 0, 0, time.UTC),
+		0, "")
+	assert.Equal(t, ExposuresForDomain{
+		Count:       0,
+		Exposures:   []string{},
+		PagingToken: "",
+	}, *exposuresForDomain)
+
+	exposuresForDomain, _ = enzoicClient.GetExposuresForDomainWithinDateRange("email.tst",
+		time.Date(2016, 10, 13, 0, 0, 0, 0, time.UTC),
+		time.Date(2016, 10, 14, 0, 0, 0, 0, time.UTC),
+		2, "")
+	assert.Equal(t, ExposuresForDomain{
+		Count:       1,
+		Exposures:   []string{"57ffcf3c1395c80b30dd4429"},
+		PagingToken: "",
 	}, *exposuresForDomain)
 }
 
@@ -465,6 +552,45 @@ func TestEnzoic_GetExposuresForDomainIncludeDetails(t *testing.T) {
 			},
 		},
 		PagingToken: "598e5b8b4eb6d82ea07c5b39",
+	}, *exposuresForDomain)
+}
+
+func TestEnzoic_GetExposuresForDomainWithinDateRangeIncludeDetails(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	exposuresForDomain, _ := enzoicClient.GetExposuresForDomainWithinDateRangeIncludeDetails("@@bogus-domain@@",
+		time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2011, 1, 1, 0, 0, 0, 0, time.UTC),
+		0, "")
+	assert.Equal(t, ExposuresForDomainIncludeDetails{
+		Count:       0,
+		Exposures:   []ExposureDetails{},
+		PagingToken: "",
+	}, *exposuresForDomain)
+
+	exposuresForDomain, _ = enzoicClient.GetExposuresForDomainWithinDateRangeIncludeDetails("email.tst",
+		time.Date(2016, 10, 13, 0, 0, 0, 0, time.UTC),
+		time.Date(2016, 10, 14, 0, 0, 0, 0, time.UTC),
+		2, "")
+	expectedDate2 := time.Date(2012, time.December, 31, 0, 0, 0, 0, time.UTC)
+	expectedDateAdded2 := time.Date(2016, time.October, 13, 18, 15, 24, 0, time.UTC)
+	assert.Equal(t, ExposuresForDomainIncludeDetails{
+		Count: 1,
+		Exposures: []ExposureDetails{
+			{
+				ID:              "57ffcf3c1395c80b30dd4429",
+				Title:           "linkedin.com",
+				Entries:         165286357,
+				Date:            &expectedDate2,
+				Category:        "Social Media",
+				PasswordType:    "SHA1",
+				ExposedData:     []string{"Emails", "Passwords"},
+				DateAdded:       &expectedDateAdded2,
+				SourceURLs:      []string{},
+				DomainsAffected: 10073082,
+			},
+		},
+		PagingToken: "",
 	}, *exposuresForDomain)
 }
 

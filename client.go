@@ -471,9 +471,23 @@ func (e *Client) CheckCredentialsEx(username, password string, lastCheckDate *ti
 // username will be hashed using SHA-256 before being passed to the Enzoic API.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-an-email-address
 func (e *Client) GetExposuresForUser(username string) ([]string, error) {
+	return e.GetExposuresForUserWithinDateRange(username, time.Time{}, time.Time{})
+}
+
+// GetExposuresForUserWithinDateRange returns all of the credentials Exposures that have been found for a given username within a specified range of dates.
+// The username will be hashed using SHA-256 before being passed to the Enzoic API.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-an-email-address
+func (e *Client) GetExposuresForUserWithinDateRange(username string, startDate time.Time, endDate time.Time) ([]string, error) {
 	usernameHash, _ := calcSHA256(strings.ToLower(username))
 
-	resp, body, err := e.makeRestCall("GET", exposuresForUsernamesAPIPath, "username="+usernameHash, nil)
+	additionalParameters := ""
+	if startDate != (time.Time{}) {
+		additionalParameters += "&startDate=" + startDate.Format("2006-01-02T15:04:05Z")
+	}
+	if endDate != (time.Time{}) {
+		additionalParameters += "&endDate=" + endDate.Format("2006-01-02T15:04:05Z")
+	}
+	resp, body, err := e.makeRestCall("GET", exposuresForUsernamesAPIPath, "username="+usernameHash+additionalParameters, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -498,8 +512,23 @@ func (e *Client) GetExposuresForUser(username string) ([]string, error) {
 // pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-all-email-addresses-in-a-domain
 func (e *Client) GetExposedUsersForDomain(domain string, pageSize int, pagingToken string) (*ExposedUsersForDomain, error) {
+	return e.GetExposedUsersForDomainWithinDateRange(domain, time.Time{}, time.Time{}, pageSize, pagingToken)
+}
+
+// GetExposedUsersForDomainWithinDateRange returns a list of all users for a given email domain who have had credentials revealed in exposures,
+// within a specified range of dates.
+// The results of this call are paginated.  pageSize can be any value from 1 to 1000.  If pageSize is not specified, the default is 1000.
+// pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-all-email-addresses-in-a-domain
+func (e *Client) GetExposedUsersForDomainWithinDateRange(domain string, startDate time.Time, endDate time.Time, pageSize int, pagingToken string) (*ExposedUsersForDomain, error) {
 	params := url.Values{}
 	params.Set("accountDomain", domain)
+	if startDate != (time.Time{}) {
+		params.Set("startDate", startDate.Format("2006-01-02T15:04:05Z"))
+	}
+	if endDate != (time.Time{}) {
+		params.Set("endDate", endDate.Format("2006-01-02T15:04:05Z"))
+	}
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.Itoa(pageSize))
 	}
@@ -533,8 +562,24 @@ func (e *Client) GetExposedUsersForDomain(domain string, pageSize int, pagingTok
 // pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-a-domain
 func (e *Client) GetExposuresForDomain(domain string, pageSize int, pagingToken string) (*ExposuresForDomain, error) {
+	return e.GetExposuresForDomainWithinDateRange(domain, time.Time{}, time.Time{}, pageSize, pagingToken)
+}
+
+// GetExposuresForDomainWithinDateRange returns a list of all exposures found involving users with email addresses from a given domain,
+// within a given date range.
+// The result will be an array of exposure IDs which can be used with the GetExposureDetails call to retrieve details.
+// The results of this call are paginated.  pageSize can be any value from 1 to 500.  If pageSize is not specified, the default is 100.
+// pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-a-domain
+func (e *Client) GetExposuresForDomainWithinDateRange(domain string, startDate time.Time, endDate time.Time, pageSize int, pagingToken string) (*ExposuresForDomain, error) {
 	params := url.Values{}
 	params.Set("domain", domain)
+	if startDate != (time.Time{}) {
+		params.Set("startDate", startDate.Format("2006-01-02T15:04:05Z"))
+	}
+	if endDate != (time.Time{}) {
+		params.Set("endDate", endDate.Format("2006-01-02T15:04:05Z"))
+	}
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.Itoa(pageSize))
 	}
@@ -568,9 +613,24 @@ func (e *Client) GetExposuresForDomain(domain string, pageSize int, pagingToken 
 // pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-a-domain
 func (e *Client) GetExposuresForDomainIncludeDetails(domain string, pageSize int, pagingToken string) (*ExposuresForDomainIncludeDetails, error) {
+	return e.GetExposuresForDomainWithinDateRangeIncludeDetails(domain, time.Time{}, time.Time{}, pageSize, pagingToken)
+}
+
+// GetExposuresForDomainWithinDateRangeIncludeDetails returns a list of all exposures found involving users with email addresses from a given domain
+// within a date range, with the details for each exposure included inline in the response.
+// The results of this call are paginated.  pageSize can be any value from 1 to 500.  If pageSize is not specified, the default is 100.
+// pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/exposures-api/get-exposures-for-a-domain
+func (e *Client) GetExposuresForDomainWithinDateRangeIncludeDetails(domain string, startDate time.Time, endDate time.Time, pageSize int, pagingToken string) (*ExposuresForDomainIncludeDetails, error) {
 	params := url.Values{}
 	params.Set("domain", domain)
 	params.Set("includeExposureDetails", "1")
+	if startDate != (time.Time{}) {
+		params.Set("startDate", startDate.Format("2006-01-02T15:04:05Z"))
+	}
+	if endDate != (time.Time{}) {
+		params.Set("endDate", endDate.Format("2006-01-02T15:04:05Z"))
+	}
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.Itoa(pageSize))
 	}
