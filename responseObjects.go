@@ -150,6 +150,7 @@ type DomainWithExtendedInfo struct {
 	Domain     string `json:"domain"`
 	WebhookID  string `json:"webhookID"`
 	WebhookURL string `json:"webhookURL"`
+	CustomData string `json:"customData"`
 }
 
 type GetDomainSubscriptionsWithExtendedInfoResponse struct {

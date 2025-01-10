@@ -1105,27 +1105,24 @@ func (e *Client) AddDomainAlertSubscriptions(domains []string) (*AddSubscription
 		Domains: domains,
 	}
 
-	requestBody, err := json.Marshal(requestObject)
-	if err != nil {
-		return nil, err
+	return callAddDomainAlertSubscription(e, requestObject)
+}
+
+// AddDomainAlertSubscriptionsWithCustomData takes an array of domains (e.g. enzoic.com) and adds them to the list of domains your account monitors
+// for new credentials exposures, along with a customData parameter to later identify them.
+// The customData parameter is typically used to store an ID value that uniquely identifies the monitored domain(s) in your
+// system.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#add-breach-alert-subscriptions
+func (e *Client) AddDomainAlertSubscriptionsWithCustomData(domains []string, customData string) (*AddSubscriptionsResponse, error) {
+	requestObject := struct {
+		Domains    []string `json:"domains"`
+		CustomData string   `json:"customData"`
+	}{
+		Domains:    domains,
+		CustomData: customData,
 	}
 
-	resp, body, err := e.makeRestCall("POST", breachMonitoringForDomainsAPIPath, "", requestBody)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("Failed to add alert subscriptions: %s", resp.Status)
-	}
-
-	var result AddSubscriptionsResponse
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return &result, nil
+	return callAddDomainAlertSubscription(e, requestObject)
 }
 
 // AddDomainAlertSubscriptionsWithSpecifiedWebhook takes an array of domains (e.g. enzoic.com) and adds them to the
@@ -1142,27 +1139,28 @@ func (e *Client) AddDomainAlertSubscriptionsWithSpecifiedWebhook(domains []strin
 		WebhookID: webhookID,
 	}
 
-	requestBody, err := json.Marshal(requestObject)
-	if err != nil {
-		return nil, err
+	return callAddDomainAlertSubscription(e, requestObject)
+}
+
+// AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData takes an array of domains (e.g. enzoic.com) and adds them to the
+// list of domains your account monitors for new credentials exposures, along with a customData parameter to later identify them.
+// The customData parameter is typically used to store an ID value that uniquely identifies the monitored domain(s) in your
+// system.
+// This variant of the call allows you to specify a webhook ID to send alerts to, if you
+// have multiple webhooks configured and wish to send alerts for these domains to one other than the default.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#add-breach-alert-subscriptions
+func (e *Client) AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData(domains []string, webhookID string, customData string) (*AddSubscriptionsResponse, error) {
+	requestObject := struct {
+		Domains    []string `json:"domains"`
+		WebhookID  string   `json:"webhookID"`
+		CustomData string   `json:"customData"`
+	}{
+		Domains:    domains,
+		WebhookID:  webhookID,
+		CustomData: customData,
 	}
 
-	resp, body, err := e.makeRestCall("POST", breachMonitoringForDomainsAPIPath, "", requestBody)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("Failed to add alert subscriptions: %s", resp.Status)
-	}
-
-	var result AddSubscriptionsResponse
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return &result, nil
+	return callAddDomainAlertSubscription(e, requestObject)
 }
 
 // DeleteDomainAlertSubscriptions takes an array of domains you wish to remove from monitoring for new credentials exposures.
@@ -1172,6 +1170,39 @@ func (e *Client) DeleteDomainAlertSubscriptions(domains []string) (*DeleteSubscr
 		Domains []string `json:"domains"`
 	}{
 		Domains: domains,
+	}
+
+	requestBody, err := json.Marshal(requestObject)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, body, err := e.makeRestCall("DELETE", breachMonitoringForDomainsAPIPath, "", requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to delete alert subscriptions: %s", resp.Status)
+	}
+
+	var result DeleteSubscriptionsResponse
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+// DeleteDomainAlertSubscriptionsByCustomData takes a customData string that was used when adding domains for monitoring
+// and deletes any subscribed domains that have that customData value.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#remove-breach-alert-subscriptions
+func (e *Client) DeleteDomainAlertSubscriptionsByCustomData(customData string) (*DeleteSubscriptionsResponse, error) {
+	requestObject := struct {
+		CustomData string `json:"customData"`
+	}{
+		CustomData: customData,
 	}
 
 	requestBody, err := json.Marshal(requestObject)
@@ -1239,6 +1270,42 @@ func (e *Client) GetDomainAlertSubscriptions(pageSize int, pagingToken string) (
 func (e *Client) GetDomainAlertSubscriptionsWithExtendedInfo(pageSize int, pagingToken string) (*GetDomainSubscriptionsWithExtendedInfoResponse, error) {
 	params := url.Values{}
 	params.Set("domains", "1")
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.Itoa(pageSize))
+	}
+	if pagingToken != "" {
+		params.Set("pagingToken", pagingToken)
+	}
+	params.Set("includeWebhookInfo", "1")
+
+	resp, body, err := e.makeRestCall("GET", breachMonitoringForDomainsAPIPath, params.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return &GetDomainSubscriptionsWithExtendedInfoResponse{Count: 0, Domains: []DomainWithExtendedInfo{}, PagingToken: ""}, nil
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get subscriptions: %s", resp.Status)
+	}
+
+	var subscriptionsResponse GetDomainSubscriptionsWithExtendedInfoResponse
+	err = json.Unmarshal(body, &subscriptionsResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &subscriptionsResponse, nil
+}
+
+// GetDomainAlertSubscriptionsWithExtendedInfoByCustomData returns a list of all the domains your account is monitoring for new credentials exposures that match a customData value,
+// along with extended information such as the Webhook that will be called for each.
+// The results of this call are paginated.  pageSize can be any value from 1 to 1000.  If pageSize is not specified, the default is 1000.
+// pagingToken is a value returned with each page of results and should be passed into this call to retrieve the next page of results.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#retrieve-current-breach-alert-subscriptions
+func (e *Client) GetDomainAlertSubscriptionsByCustomData(customData string, pageSize int, pagingToken string) (*GetDomainSubscriptionsWithExtendedInfoResponse, error) {
+	params := url.Values{}
+	params.Set("customData", customData)
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.Itoa(pageSize))
 	}
@@ -1356,4 +1423,28 @@ func (e *Client) makeRestCall(method, endpoint string, params string, body []byt
 	}
 
 	return resp, responseBody, nil
+}
+
+func callAddDomainAlertSubscription[T any](client *Client, requestObject T) (*AddSubscriptionsResponse, error) {
+	requestBody, err := json.Marshal(requestObject)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, body, err := client.makeRestCall("POST", breachMonitoringForDomainsAPIPath, "", requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("Failed to add alert subscriptions: %s", resp.Status)
+	}
+
+	var result AddSubscriptionsResponse
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

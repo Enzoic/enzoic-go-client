@@ -768,6 +768,22 @@ func TestEnzoic_AddDomainAlertSubscriptions(t *testing.T) {
 	assert.Equal(t, 0, response.AlreadyExisted)
 }
 
+func TestEnzoic_AddDomainAlertSubscriptionsWithCustomData(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testDomains := []string{
+		"testadddomain1.com",
+		"testadddomain2.com",
+	}
+
+	// delete them just in case they were left behind by previous test
+	enzoicClient.DeleteDomainAlertSubscriptions(testDomains)
+
+	response, _ := enzoicClient.AddDomainAlertSubscriptionsWithCustomData(testDomains, "testSubs")
+	assert.Equal(t, 2, response.Added)
+	assert.Equal(t, 0, response.AlreadyExisted)
+}
+
 func TestEnzoic_AddDomainAlertSubscriptionsWithSpecifiedWebhook(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -784,6 +800,22 @@ func TestEnzoic_AddDomainAlertSubscriptionsWithSpecifiedWebhook(t *testing.T) {
 	assert.Equal(t, 0, response.AlreadyExisted)
 }
 
+func TestEnzoic_AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testDomains := []string{
+		"testadddomain1.com",
+		"testadddomain2.com",
+	}
+
+	// delete them just in case they were left behind by previous test
+	enzoicClient.DeleteDomainAlertSubscriptions(testDomains)
+
+	response, _ := enzoicClient.AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData(testDomains, "668db147aa97bb620c171388", "testSubs")
+	assert.Equal(t, 2, response.Added)
+	assert.Equal(t, 0, response.AlreadyExisted)
+}
+
 func TestEnzoic_DeleteDomainAlertSubscriptions(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -796,6 +828,22 @@ func TestEnzoic_DeleteDomainAlertSubscriptions(t *testing.T) {
 	enzoicClient.AddDomainAlertSubscriptions(testDomains)
 
 	response, _ := enzoicClient.DeleteDomainAlertSubscriptions(testDomains)
+	assert.Equal(t, 2, response.Deleted)
+	assert.Equal(t, 0, response.NotFound)
+}
+
+func TestEnzoic_DeleteDomainAlertSubscriptionsByCustomData(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testDomains := []string{
+		"testadddomain1.com",
+		"testadddomain2.com",
+	}
+
+	// add test subscriptions
+	enzoicClient.AddDomainAlertSubscriptionsWithCustomData(testDomains, "testSubs")
+
+	response, _ := enzoicClient.DeleteDomainAlertSubscriptionsByCustomData("testSubs")
 	assert.Equal(t, 2, response.Deleted)
 	assert.Equal(t, 0, response.NotFound)
 }
@@ -879,6 +927,7 @@ func TestEnzoic_GetDomainAlertSubscriptionsWithExtendedInfo(t *testing.T) {
 				Domain:     "testadddomain1.com",
 				WebhookID:  "668d9784b79968eab0657905",
 				WebhookURL: "https://api.passwordping.com/webhook",
+				CustomData: "",
 			},
 		},
 		Count:       2,
@@ -892,6 +941,54 @@ func TestEnzoic_GetDomainAlertSubscriptionsWithExtendedInfo(t *testing.T) {
 				Domain:     "testadddomain2.com",
 				WebhookID:  "668d9784b79968eab0657905",
 				WebhookURL: "https://api.passwordping.com/webhook",
+				CustomData: "",
+			},
+		},
+		Count:       2,
+		PagingToken: "",
+	}, *response)
+}
+
+func TestEnzoic_GetDomainAlertSubscriptionsByCustomData(t *testing.T) {
+	enzoicClient, _ := NewClient(os.Getenv("PP_API_KEY"), os.Getenv("PP_API_SECRET"))
+
+	testDomains := []string{
+		"testadddomain1.com",
+		"testadddomain2.com",
+	}
+
+	// clean out existing subscriptions
+	getResponse, _ := enzoicClient.GetDomainAlertSubscriptions(100, "")
+	enzoicClient.DeleteDomainAlertSubscriptions(getResponse.Domains)
+
+	// add test subscriptions
+	response2, err := enzoicClient.AddDomainAlertSubscriptionsWithCustomData(testDomains, "testSubs")
+	assert.Nil(t, err)
+	assert.Equal(t, 2, response2.Added)
+
+	response, err := enzoicClient.GetDomainAlertSubscriptionsByCustomData("testSubs", 1, "")
+	assert.Nil(t, err)
+	assert.Equal(t, GetDomainSubscriptionsWithExtendedInfoResponse{
+		Domains: []DomainWithExtendedInfo{
+			{
+				Domain:     "testadddomain1.com",
+				WebhookID:  "668d9784b79968eab0657905",
+				WebhookURL: "https://api.passwordping.com/webhook",
+				CustomData: "testSubs",
+			},
+		},
+		Count:       2,
+		PagingToken: response.PagingToken,
+	}, *response)
+
+	response, _ = enzoicClient.GetDomainAlertSubscriptionsWithExtendedInfo(1, response.PagingToken)
+	assert.Equal(t, GetDomainSubscriptionsWithExtendedInfoResponse{
+		Domains: []DomainWithExtendedInfo{
+			{
+				Domain:     "testadddomain2.com",
+				WebhookID:  "668d9784b79968eab0657905",
+				WebhookURL: "https://api.passwordping.com/webhook",
+				CustomData: "testSubs",
 			},
 		},
 		Count:       2,

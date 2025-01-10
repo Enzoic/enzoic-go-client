@@ -240,8 +240,23 @@ if err != nil {panic(err)}
 fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
 fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
 
+// use a customData parameter to pass additional information about the subscribed domains
+// e.g. the ID of the domain in your system
+addResponse, err = enzoicClient.AddDomainAlertSubscriptionsWithCustomData(domains, "exampleCustomData")
+if err != nil {panic(err)}
+
+fmt.Println("New subscriptions added: " + strconv.Itoa(addResponse.Added))
+fmt.Println("Subscriptions already existing: " + strconv.Itoa(addResponse.AlreadyExisted))
+
+// you can delete subscriptions using this customData value as well
+deleteResponse, err = enzoicClient.DeleteDomainAlertSubscriptionsByCustomData(domains, "exampleCustomData")
+if err != nil {panic(err)}
+
+fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
+fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
+
 // by default, alerts will go to your default webhook on your account.  Specify an alternate Webhook to send the alerts to
-// by providing its ID
+// by providing its ID when you add the subscriptions
 addResponse, err = enzoicClient.AddDomainAlertSubscriptionsWithSpecifiedWebhook(domains, "668db147aa97bb620c171388")
 if err != nil {panic(err)}
 
@@ -268,6 +283,7 @@ for i := 0; i < len(domainSubsResponse.Domains); i += 1 {
    fmt.Println("Domain: " + domainSubsResponse.Domains[i].Domain)
    fmt.Println("Webhook ID: " + domainSubsResponse.Domains[i].WebhookID) 
    fmt.Println("Webhook URL: " + domainSubsResponse.Domains[i].WebhookURL)
+   fmt.Println("CustomData: " + domainSubsResponse.Domains[i].CustomData)
 }
 
 // if pagingToken present, get next page of results
@@ -275,5 +291,11 @@ if domainSubsResponse.PagingToken != "" {
     domainSubsResponse, err = enzoicClient.GetDomainAlertSubscriptions(4, domainSubsResponse.PagingToken)
     // process second page of results, etc.
 }
+
+// get all domains subscribed for alerts on this account matching a specific customData value 
+// returns pages results per https://www.enzoic.com/docs-exposure-alerts-service-api/#get-exposure-subscriptions-domains
+domainSubsResponse, err = enzoicClient.GetDomainAlertSubscriptionsByCustomData("exampleCustomData", 4 /* page size */, "" /* paging token - empty on first call */)
+if err != nil {panic(err)}
+
 ```
 
