@@ -870,6 +870,8 @@ func (e *Client) AddUserAlertSubscriptions(usernames []string, customData string
 // for new credentials exposures.  The customData parameter can optionally be used with any string value to tag the
 // new subscription items with a custom value.  This value will be sent to your webhook when a new alert is found for
 // one of these users and can also be used to lookup or delete entries.
+// This variant of the call allows you to specify a webhook ID to send alerts to, if you
+// have multiple webhooks configured and wish to send alerts for these users to one other than the default.
 // see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-user#add-breach-alert-subscriptions
 func (e *Client) AddUserAlertSubscriptionsWithSpecifiedWebhook(usernames []string, customData string, webhookID string) (*AddSubscriptionsResponse, error) {
 	usernameHashes := hashUsernameList(usernames)
@@ -916,6 +918,28 @@ func (e *Client) AddUserAlertSubscriptionsWithSpecifiedWebhook(usernames []strin
 	}
 
 	return &result, nil
+}
+
+// AddUserAlertSubscriptionsV2 takes an array of users to monitor and adds them to the list of users your account monitors
+// for new credentials exposures.  Each user to monitor is a struct containing the email address of the user to monitor
+// and an optional customData value for that user that can be any string value to tag the new subscription items with a custom value.
+// This value will be sent to your webhook when a new alert is found for one of these users and can also be used to lookup or delete entries.
+// The webhookID parameter allows you to specify a webhook ID to send alerts to, if you have multiple webhooks configured
+// and wish to send alerts for these users to one other than the default.  If you do not wish to use a webhook other than the default,
+// pass an empty string in for this parameter.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-user#add-breach-alert-subscriptions
+func (e *Client) AddUserAlertSubscriptionsV2(usersToMonitor []UserAlertSubscription, webhookID string) (*AddSubscriptionsResponse, error) {
+	usersToMonitorPayloads := hashUsersToMonitorAddresses(usersToMonitor)
+
+	requestObject := struct {
+		UsersToMonitor []UserToMonitorPayload `json:"usersToMonitor"`
+		WebhookID      string                 `json:"webhookID"`
+	}{
+		UsersToMonitor: usersToMonitorPayloads,
+		WebhookID:      webhookID,
+	}
+
+	return callAddAlertSubscriptions(e, requestObject, breachMonitoringForUsersAPIPath)
 }
 
 // DeleteUserAlertSubscriptions takes an array of email addresses you wish to remove from monitoring for new credentials
@@ -1105,7 +1129,7 @@ func (e *Client) AddDomainAlertSubscriptions(domains []string) (*AddSubscription
 		Domains: domains,
 	}
 
-	return callAddDomainAlertSubscription(e, requestObject)
+	return callAddAlertSubscriptions(e, requestObject, breachMonitoringForDomainsAPIPath)
 }
 
 // AddDomainAlertSubscriptionsWithCustomData takes an array of domains (e.g. enzoic.com) and adds them to the list of domains your account monitors
@@ -1122,7 +1146,7 @@ func (e *Client) AddDomainAlertSubscriptionsWithCustomData(domains []string, cus
 		CustomData: customData,
 	}
 
-	return callAddDomainAlertSubscription(e, requestObject)
+	return callAddAlertSubscriptions(e, requestObject, breachMonitoringForDomainsAPIPath)
 }
 
 // AddDomainAlertSubscriptionsWithSpecifiedWebhook takes an array of domains (e.g. enzoic.com) and adds them to the
@@ -1139,7 +1163,7 @@ func (e *Client) AddDomainAlertSubscriptionsWithSpecifiedWebhook(domains []strin
 		WebhookID: webhookID,
 	}
 
-	return callAddDomainAlertSubscription(e, requestObject)
+	return callAddAlertSubscriptions(e, requestObject, breachMonitoringForDomainsAPIPath)
 }
 
 // AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData takes an array of domains (e.g. enzoic.com) and adds them to the
@@ -1160,7 +1184,26 @@ func (e *Client) AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData(do
 		CustomData: customData,
 	}
 
-	return callAddDomainAlertSubscription(e, requestObject)
+	return callAddAlertSubscriptions(e, requestObject, breachMonitoringForDomainsAPIPath)
+}
+
+// AddDomainAlertSubscriptionsWithSpecifiedWebhookV2 takes an array of domains (e.g. enzoic.com) and adds them to the
+// list of domains your account monitors for new credentials exposures.  Each domain in the array is a struct containing
+// the domain name and an optional customData value for that domain that can be any string value to tag the new subscription with.
+// This customData will be sent to your webhook when a new alert is found for one of these domains and can also be used to lookup or delete entries.
+// This variant of the call allows you to specify a webhook ID to send alerts to, if you
+// have multiple webhooks configured and wish to send alerts for these domains to one other than the default.
+// see https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/breach-monitoring-api/breach-monitoring-by-domain#add-breach-alert-subscriptions
+func (e *Client) AddDomainAlertSubscriptionsV2(domainAlertSubscriptions []DomainAlertSubscription, webhookID string) (*AddSubscriptionsResponse, error) {
+	requestObject := struct {
+		Domains   []DomainAlertSubscription `json:"domains"`
+		WebhookID string                    `json:"webhookID"`
+	}{
+		Domains:   domainAlertSubscriptions,
+		WebhookID: webhookID,
+	}
+
+	return callAddAlertSubscriptions(e, requestObject, breachMonitoringForDomainsAPIPath)
 }
 
 // DeleteDomainAlertSubscriptions takes an array of domains you wish to remove from monitoring for new credentials exposures.
@@ -1388,6 +1431,18 @@ func hashUsernameList(usernames []string) []string {
 	return usernameHashes
 }
 
+func hashUsersToMonitorAddresses(usersToMonitor []UserAlertSubscription) []UserToMonitorPayload {
+	var result []UserToMonitorPayload
+	for _, userToMonitor := range usersToMonitor {
+		usernameHash, _ := calcSHA256(strings.ToLower(userToMonitor.EmailAddress))
+		result = append(result, UserToMonitorPayload{
+			UsernameHash: usernameHash,
+			CustomData:   userToMonitor.CustomData,
+		})
+	}
+	return result
+}
+
 func (e *Client) makeRestCall(method, endpoint string, params string, body []byte) (*http.Response, []byte, error) {
 	apiUrl := ""
 	if params != "" && strings.Index(params, "?") == 0 {
@@ -1425,13 +1480,13 @@ func (e *Client) makeRestCall(method, endpoint string, params string, body []byt
 	return resp, responseBody, nil
 }
 
-func callAddDomainAlertSubscription[T any](client *Client, requestObject T) (*AddSubscriptionsResponse, error) {
+func callAddAlertSubscriptions[T any](client *Client, requestObject T, requestPath string) (*AddSubscriptionsResponse, error) {
 	requestBody, err := json.Marshal(requestObject)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, body, err := client.makeRestCall("POST", breachMonitoringForDomainsAPIPath, "", requestBody)
+	resp, body, err := client.makeRestCall("POST", requestPath, "", requestBody)
 	if err != nil {
 		return nil, err
 	}

@@ -168,17 +168,25 @@ See https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/bre
 
 ```go
 // couple of email addresses you wish to monitor
-usernames := []string{"eicar_0@enzoic.com", "eicar_1@enzoic.com"}
+usersToMonitor := []UserAlertSubscription{
+    {
+		EmailAddress: "eicar_0@enzoic.com",
+		// use the optional customData parameter to pass additional information about the subscribed users
+		// e.g. the ID of the user in your system
+		CustomData: "exampleCustomData1"
+	},
+    {EmailAddress: "eicar_1@enzoic.com"}
+}
 
 // subscribe for alerts for these users
-addResponse, err := enzoicClient.AddUserAlertSubscriptions(usernames, "exampleCustomData")
+addResponse, err := enzoicClient.AddUserAlertSubscriptionsV2(usersToMonitor, "")
 if err != nil {panic(err)}
 
 fmt.Println("New subscriptions added: " + strconv.Itoa(addResponse.Added))
 fmt.Println("Subscriptions already existing: " + strconv.Itoa(addResponse.AlreadyExisted))
 
 // delete subscriptions for these users
-deleteResponse, err := enzoicClient.DeleteUserAlertSubscriptions(usernames)
+deleteResponse, err := enzoicClient.DeleteUserAlertSubscriptions([]string{"eicar_0@enzoic.com", "eicar_1@enzoic.com"})
 if err != nil {panic(err)}
 
 fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
@@ -186,7 +194,7 @@ fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
 
 // by default, alerts will go to your default webhook on your account.  Specify an alternate Webhook to send the alerts to
 // by providing its ID
-addResponse, err := enzoicClient.AddUserAlertSubscriptionsWithSpecifiedWebhook(usernames, "exampleCustomData", "668db147aa97bb620c171388")
+addResponse, err := enzoicClient.AddUserAlertSubscriptionsWithSpecifiedWebhook(usersToMonitor, "668db147aa97bb620c171388")
 if err != nil {panic(err)}
  
 // check whether a user is already subscribed
@@ -209,6 +217,7 @@ for i := 0; i < len(subscriptionsResponse.UsernameHashes); i += 1 {
    fmt.Println("Username Hash: " + subscriptionsResponse.UsernameHashes[i].UsernameHash)
    fmt.Println("Webhook ID: " + subscriptionsResponse.UsernameHashes[i].WebhookID)
    fmt.Println("Webhook URL: " + subscriptionsResponse.UsernameHashes[i].WebhookURL)
+   fmt.Println("Custom Data: " + subscriptionsResponse.UsernameHashes[i].CustomData)
 }
 
 // if PagingToken present, get next page of results
@@ -224,32 +233,34 @@ See https://docs.enzoic.com/enzoic-api-developer-documentation/api-reference/bre
 
 ```go
 // test domains for alert subscriptions
-domains := []string{"testdomain1.com", "testdomain2.com"}
+domainsToMonitor := []DomainAlertSubscription{
+	{
+		Domain: "testdomain1.com",
+		// use the optional customData parameter to pass additional information about the subscribed domains
+		// e.g. the ID of the domain in your system
+		CustomData: "exampleCustomData1" 
+	},
+    {
+		Domain: "testdomain2.com" 
+	}
+}
 
 // subscribe for alerts for these domains
-addResponse, err = enzoicClient.AddDomainAlertSubscriptions(domains)
+addResponse, err = enzoicClient.AddDomainAlertSubscriptionsV2(domainsToMonitor, "")
 if err != nil {panic(err)}
 
 fmt.Println("New subscriptions added: " + strconv.Itoa(addResponse.Added))
 fmt.Println("Subscriptions already existing: " + strconv.Itoa(addResponse.AlreadyExisted))
 
 // delete subscriptions for these domains
-deleteResponse, err = enzoicClient.DeleteDomainAlertSubscriptions(domains)
+deleteResponse, err = enzoicClient.DeleteDomainAlertSubscriptions([]string{"testdomain1.com", "testdomain2.com"})
 if err != nil {panic(err)}
 
 fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
 fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
 
-// use a customData parameter to pass additional information about the subscribed domains
-// e.g. the ID of the domain in your system
-addResponse, err = enzoicClient.AddDomainAlertSubscriptionsWithCustomData(domains, "exampleCustomData")
-if err != nil {panic(err)}
-
-fmt.Println("New subscriptions added: " + strconv.Itoa(addResponse.Added))
-fmt.Println("Subscriptions already existing: " + strconv.Itoa(addResponse.AlreadyExisted))
-
-// you can delete subscriptions using this customData value as well
-deleteResponse, err = enzoicClient.DeleteDomainAlertSubscriptionsByCustomData(domains, "exampleCustomData")
+// you can delete subscriptions using the customData value as well
+deleteResponse, err = enzoicClient.DeleteDomainAlertSubscriptionsByCustomData(domains, "exampleCustomData1")
 if err != nil {panic(err)}
 
 fmt.Println("Subscriptions deleted: " + strconv.Itoa(deleteResponse.Deleted))
@@ -257,11 +268,8 @@ fmt.Println("Subscriptions not found: " + strconv.Itoa(deleteResponse.NotFound))
 
 // by default, alerts will go to your default webhook on your account.  Specify an alternate Webhook to send the alerts to
 // by providing its ID when you add the subscriptions
-addResponse, err = enzoicClient.AddDomainAlertSubscriptionsWithSpecifiedWebhook(domains, "668db147aa97bb620c171388")
+addResponse, err = enzoicClient.AddDomainAlertSubscriptionsV2(domains, "668db147aa97bb620c171388")
 if err != nil {panic(err)}
-
-fmt.Println("New subscriptions added: " + strconv.Itoa(addResponse.Added))
-fmt.Println("Subscriptions already existing: " + strconv.Itoa(addResponse.AlreadyExisted))
 
 // check whether a domain is already subscribed
 subscribed, err = enzoicClient.IsDomainSubscribedForAlerts(domains[0])
@@ -294,7 +302,7 @@ if domainSubsResponse.PagingToken != "" {
 
 // get all domains subscribed for alerts on this account matching a specific customData value 
 // returns pages results per https://www.enzoic.com/docs-exposure-alerts-service-api/#get-exposure-subscriptions-domains
-domainSubsResponse, err = enzoicClient.GetDomainAlertSubscriptionsByCustomData("exampleCustomData", 4 /* page size */, "" /* paging token - empty on first call */)
+domainSubsResponse, err = enzoicClient.GetDomainAlertSubscriptionsByCustomData("exampleCustomData1", 4 /* page size */, "" /* paging token - empty on first call */)
 if err != nil {panic(err)}
 
 ```

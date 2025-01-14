@@ -626,6 +626,50 @@ func TestEnzoic_AddUserAlertSubscriptionsWithSpecifiedWebhook(t *testing.T) {
 	assert.Equal(t, 0, response.AlreadyExisted)
 }
 
+func TestEnzoic_AddUserAlertSubscriptionsV2(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testUsers := []UserAlertSubscription{
+		{EmailAddress: "eicar_1@enzoic.com", CustomData: "unit-test-go-1"},
+		{EmailAddress: "eicar_0@enzoic.com", CustomData: "unit-test-go-2"},
+	}
+
+	// delete them just in case they were left behind by previous test
+	enzoicClient.DeleteUserAlertSubscriptions([]string{testUsers[0].EmailAddress, testUsers[1].EmailAddress})
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-1")
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-2")
+
+	response, _ := enzoicClient.AddUserAlertSubscriptionsV2(testUsers, "")
+	assert.Equal(t, 2, response.Added)
+	assert.Equal(t, 0, response.AlreadyExisted)
+
+	// make sure it works with no customData specified
+	testUsersNoCustomData := []UserAlertSubscription{
+		{EmailAddress: "eicar_1@enzoic.com"},
+		{EmailAddress: "eicar_0@enzoic.com"},
+	}
+
+	// clear out previous test data
+	enzoicClient.DeleteUserAlertSubscriptions([]string{testUsers[0].EmailAddress, testUsers[1].EmailAddress})
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-1")
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-2")
+
+	responseNoCustomData, _ := enzoicClient.AddUserAlertSubscriptionsV2(testUsersNoCustomData, "")
+	assert.Equal(t, 2, responseNoCustomData.Added)
+	assert.Equal(t, 0, responseNoCustomData.AlreadyExisted)
+
+	// clear out previous test data
+	enzoicClient.DeleteUserAlertSubscriptions([]string{testUsers[0].EmailAddress, testUsers[1].EmailAddress})
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-1")
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-2")
+
+	// make sure it works with a webhook specified
+	responseCustomWebhook, _ := enzoicClient.AddUserAlertSubscriptionsV2(testUsers, "668db147aa97bb620c171388")
+	assert.Equal(t, 2, responseCustomWebhook.Added)
+	assert.Equal(t, 0, responseCustomWebhook.AlreadyExisted)
+
+}
+
 func TestEnzoic_DeleteUserAlertSubscriptions(t *testing.T) {
 	enzoicClient := GetEnzoicClient()
 
@@ -633,6 +677,11 @@ func TestEnzoic_DeleteUserAlertSubscriptions(t *testing.T) {
 		"eicar_1@enzoic.com",
 		"eicar_0@enzoic.com",
 	}
+
+	// clear out previous test data
+	enzoicClient.DeleteUserAlertSubscriptions(testUsers)
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-1")
+	enzoicClient.DeleteUserAlertSubscriptionsByCustomData("unit-test-go-2")
 
 	// add test subscriptions
 	enzoicClient.AddUserAlertSubscriptions(testUsers, "")
@@ -814,6 +863,43 @@ func TestEnzoic_AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData(t *
 	response, _ := enzoicClient.AddDomainAlertSubscriptionsWithSpecifiedWebhookAndCustomData(testDomains, "668db147aa97bb620c171388", "testSubs")
 	assert.Equal(t, 2, response.Added)
 	assert.Equal(t, 0, response.AlreadyExisted)
+}
+
+func TestEnzoic_AddDomainAlertSubscriptionsV2(t *testing.T) {
+	enzoicClient := GetEnzoicClient()
+
+	testDomains := []DomainAlertSubscription{
+		{Domain: "testadddomain1.com", CustomData: "testSub1"},
+		{Domain: "testadddomain2.com", CustomData: "testSub2"},
+	}
+
+	// delete them just in case they were left behind by previous test
+	enzoicClient.DeleteDomainAlertSubscriptions([]string{testDomains[0].Domain, testDomains[1].Domain})
+
+	response, _ := enzoicClient.AddDomainAlertSubscriptionsV2(testDomains, "")
+	assert.Equal(t, 2, response.Added)
+	assert.Equal(t, 0, response.AlreadyExisted)
+
+	// make sure it works with no customData specified
+	testDomains2 := []DomainAlertSubscription{
+		{Domain: "testadddomain1.com"},
+		{Domain: "testadddomain2.com"},
+	}
+
+	// clear out previous test data
+	enzoicClient.DeleteDomainAlertSubscriptions([]string{testDomains[0].Domain, testDomains[1].Domain})
+
+	response2, _ := enzoicClient.AddDomainAlertSubscriptionsV2(testDomains2, "")
+	assert.Equal(t, 2, response2.Added)
+	assert.Equal(t, 0, response2.AlreadyExisted)
+
+	// clear out previous test data
+	enzoicClient.DeleteDomainAlertSubscriptions([]string{testDomains[0].Domain, testDomains[1].Domain})
+
+	// make sure it works with a webhook specified
+	response3, _ := enzoicClient.AddDomainAlertSubscriptionsV2(testDomains2, "668db147aa97bb620c171388")
+	assert.Equal(t, 2, response3.Added)
+	assert.Equal(t, 0, response3.AlreadyExisted)
 }
 
 func TestEnzoic_DeleteDomainAlertSubscriptions(t *testing.T) {
